@@ -322,7 +322,15 @@ struct InstalledAppsView: View {
                         .accessibilityAddTraits(selected.contains(app.id) ? .isSelected : [])
                     }
                 } header: {
-                    Text("Found \(found.count) app\(found.count == 1 ? "" : "s")")
+                    HStack {
+                        Text("Found \(found.count) app\(found.count == 1 ? "" : "s")")
+                        Spacer()
+                        Button(selected.count == found.count ? "Deselect all" : "Select all") {
+                            selected = selected.count == found.count ? [] : Set(found.map(\.id))
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .textCase(nil)
+                    }
                 } footer: {
                     Text("iPhone only lets Ebb check for apps it knows about, so a few of yours may be missing. Add those from Browse all apps with a Shortcut.")
                 }
@@ -332,25 +340,32 @@ struct InstalledAppsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
+                Button("Close", systemImage: "xmark") { dismiss() }
             }
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Add \(selected.count)") {
+        }
+        .safeAreaBar(edge: .bottom) {
+            if !found.isEmpty {
+                Button {
                     for app in found where selected.contains(app.id) {
                         let target = app.makeTarget()
                         store.add(target)
                         store.addToFirstOpenList(target.id)
                     }
                     dismiss()
+                } label: {
+                    Text(selected.isEmpty ? "Choose apps to add" : "Add \(selected.count) app\(selected.count == 1 ? "" : "s")")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .foregroundStyle(selected.isEmpty ? Color.secondary : Color(.systemBackground))
+                        .background(Capsule().fill(selected.isEmpty ? Color.secondary.opacity(0.2) : Color.primary))
+                        .contentShape(Capsule())
                 }
+                .buttonStyle(.plain)
                 .disabled(selected.isEmpty)
-            }
-            if !found.isEmpty {
-                ToolbarItem(placement: .bottomBar) {
-                    Button(selected.count == found.count ? "Deselect all" : "Select all") {
-                        selected = selected.count == found.count ? [] : Set(found.map(\.id))
-                    }
-                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
             }
         }
         .onAppear {
