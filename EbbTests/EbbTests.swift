@@ -336,3 +336,14 @@ struct WallpaperMatcherTests {
         }
     }
 }
+
+@MainActor
+struct CatalogTests {
+    /// iOS only answers "is this app installed?" for up to 50 declared schemes.
+    @Test func detectableAppsFitApplesLimit() throws {
+        let declared = (Bundle.main.object(forInfoDictionaryKey: "LSApplicationQueriesSchemes") as? [String]) ?? []
+        let thirdParty = AppCatalog.apps.filter { $0.category != .essentials }
+        #expect(thirdParty.count <= 50)
+        #expect(declared.count == thirdParty.count)
+    }
+}

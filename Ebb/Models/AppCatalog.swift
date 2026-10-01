@@ -74,6 +74,10 @@ enum AppCatalog {
         .init(name: "Google Docs", scheme: "googledocs://", category: .productivity),
         .init(name: "Google Sheets", scheme: "googlesheets://", category: .productivity),
         .init(name: "Brave", scheme: "brave://", category: .productivity),
+        .init(name: "Microsoft Word", scheme: "ms-word://", category: .productivity),
+        .init(name: "Microsoft Excel", scheme: "ms-excel://", category: .productivity),
+        .init(name: "PayPal", scheme: "paypal://", category: .productivity),
+        .init(name: "Cash App", scheme: "squarecash://", category: .productivity),
         .init(name: "Firefox", scheme: "firefox://", category: .productivity),
         .init(name: "Duolingo", scheme: "duolingo://", category: .productivity),
         .init(name: "Strava", scheme: "strava://", category: .productivity),
@@ -82,6 +86,8 @@ enum AppCatalog {
         // Media
         .init(name: "Spotify", scheme: "spotify://", category: .media),
         .init(name: "YouTube Music", scheme: "youtubemusic://", category: .media),
+        .init(name: "Shazam", scheme: "shazam://", category: .media),
+        .init(name: "Twitch", scheme: "twitch://", category: .media),
         .init(name: "YouTube", scheme: "youtube://", category: .media),
         .init(name: "Netflix", scheme: "nflx://", category: .media),
         .init(name: "Audible", scheme: "audible://", category: .media),
@@ -93,6 +99,7 @@ enum AppCatalog {
         .init(name: "Waze", scheme: "waze://", category: .travel),
         .init(name: "Uber", scheme: "uber://", category: .travel),
         .init(name: "Lyft", scheme: "lyft://", category: .travel),
+        .init(name: "Uber Eats", scheme: "ubereats://", category: .travel),
         .init(name: "Airbnb", scheme: "airbnb://", category: .travel),
 
         // Social

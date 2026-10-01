@@ -22,12 +22,18 @@
 		<string>googledocs</string>
 		<string>googlesheets</string>
 		<string>brave</string>
+		<string>ms-word</string>
+		<string>ms-excel</string>
+		<string>paypal</string>
+		<string>squarecash</string>
 		<string>firefox</string>
 		<string>duolingo</string>
 		<string>strava</string>
 		<string>venmo</string>
 		<string>spotify</string>
 		<string>youtubemusic</string>
+		<string>shazam</string>
+		<string>twitch</string>
 		<string>youtube</string>
 		<string>nflx</string>
 		<string>audible</string>
@@ -37,6 +43,7 @@
 		<string>waze</string>
 		<string>uber</string>
 		<string>lyft</string>
+		<string>ubereats</string>
 		<string>airbnb</string>
 		<string>instagram</string>
 		<string>snssdk1233</string>
