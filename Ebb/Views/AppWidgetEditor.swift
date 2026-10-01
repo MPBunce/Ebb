@@ -32,7 +32,14 @@ struct AppWidgetEditor: View {
 
                 Section {
                     ForEach(apps) { app in
-                        Text(app.name)
+                        HStack {
+                            Text(app.name)
+                            Spacer()
+                            Button("Test") { store.open(app, intention: nil) }
+                                .buttonStyle(.borderless)
+                                .font(.footnote)
+                                .accessibilityLabel("Open \(app.name)")
+                        }
                     }
                     .onMove { store.moveApps(in: listID, from: $0, to: $1) }
                     .onDelete { offsets in
@@ -45,10 +52,17 @@ struct AppWidgetEditor: View {
                 } header: {
                     Text("On this widget · \(apps.count) of \(AppWidgetList.capacity)")
                 } footer: {
-                    Text("Drag to reorder. Swipe to remove.")
+                    Text("Tap Edit to reorder. Swipe to remove. Tap Test to check an app opens.")
                 }
 
                 Section {
+                    NavigationLink {
+                        CatalogPicker(widgetID: listID)
+                            .navigationTitle("Add to \(list.name)")
+                            .navigationBarTitleDisplayMode(.inline)
+                    } label: {
+                        Label("Add apps", systemImage: "plus.circle.fill")
+                    }
                     ForEach(others) { app in
                         Button {
                             store.toggle(app.id, in: listID)
@@ -60,15 +74,18 @@ struct AppWidgetEditor: View {
                                 Image(systemName: "plus.circle")
                                     .foregroundStyle(list.isFull ? .tertiary : .secondary)
                             }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.borderless)
                         .disabled(list.isFull)
                     }
-                    NavigationLink("Add a new app") { AddAppsSheetContent() }
                 } header: {
                     Text("Add apps")
                 } footer: {
                     if list.isFull {
                         Text("This widget is full. Remove an app, or put more apps on another app widget.")
+                    } else if !others.isEmpty {
+                        Text("Apps you've added to Ebb but not to this widget.")
                     }
                 }
 
@@ -78,8 +95,10 @@ struct AppWidgetEditor: View {
                     }
                 }
             }
-            .environment(\.editMode, .constant(.active))
             .navigationTitle(list.name)
+            .toolbar {
+                if !apps.isEmpty { EditButton() }
+            }
             .navigationBarTitleDisplayMode(.inline)
             .onAppear { name = list.name }
             .onDisappear { store.renameList(listID, to: name) }
@@ -94,15 +113,6 @@ struct AppWidgetEditor: View {
         } else {
             ContentUnavailableView("App widget deleted", systemImage: "square.dashed")
         }
-    }
-}
-
-/// The catalog, pushed inside a navigation stack instead of presented as a sheet.
-private struct AddAppsSheetContent: View {
-    var body: some View {
-        CatalogPicker()
-            .navigationTitle("Add apps")
-            .navigationBarTitleDisplayMode(.inline)
     }
 }
 

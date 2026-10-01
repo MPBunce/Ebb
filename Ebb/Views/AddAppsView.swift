@@ -35,7 +35,19 @@ struct AddAppsView: View {
 struct CatalogPicker: View {
     @Environment(LauncherStore.self) private var store
     @State private var query = ""
+    @State private var showFull = false
+    @State private var isAddingCustom = false
     var addsToHome = false
+    /// When set, tapping an app puts it on (or takes it off) this app widget.
+    var widgetID: UUID?
+
+    private var widget: AppWidgetList? { widgetID.flatMap { id in store.lists.first { $0.id == id } } }
+
+    private func isChecked(_ app: CatalogApp) -> Bool {
+        guard let target = store.targets.first(where: { $0.name == app.name }) else { return false }
+        if let widget { return widget.appIDs.contains(target.id) }
+        return true
+    }
 
     private var grouped: [(CatalogApp.Category, [CatalogApp])] {
         let apps = query.isEmpty
@@ -50,9 +62,14 @@ struct CatalogPicker: View {
     var body: some View {
         List {
             Section {
-                Text("Don't see an app? Tap Custom and use a Shortcut. In the Shortcuts app, make one with the “Open App” action and give Ebb its name.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                Button {
+                    isAddingCustom = true
+                } label: {
+                    Label("Add an app that isn't listed", systemImage: "plus.circle")
+                }
+                .buttonStyle(.borderless)
+            } footer: {
+                Text("iPhone doesn't let Ebb see which apps you have, so pick from this list. For anything else, add it with a Shortcut (works for every app) or the app's link.")
             }
             ForEach(grouped, id: \.0) { category, apps in
                 Section(category.rawValue) {
@@ -63,7 +80,7 @@ struct CatalogPicker: View {
                             HStack {
                                 Text(app.name)
                                 Spacer()
-                                if store.contains(catalogApp: app) {
+                                if isChecked(app) {
                                     Image(systemName: "checkmark")
                                         .accessibilityLabel("Added")
                                 }
@@ -75,10 +92,31 @@ struct CatalogPicker: View {
                 }
             }
         }
-        .searchable(text: $query, prompt: "Search catalog")
+        .searchable(text: $query, prompt: "Search apps")
+        .alert("This widget is full", isPresented: $showFull) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("An app widget holds \(AppWidgetList.capacity) apps. Remove one, or add this app to another app widget.")
+        }
+        .sheet(isPresented: $isAddingCustom) {
+            NavigationStack { TargetEditor(target: nil, widgetID: widgetID) }
+        }
     }
 
     private func toggle(_ app: CatalogApp) {
+        if let widget {
+            let target = store.targets.first(where: { $0.name == app.name }) ?? {
+                let new = app.makeTarget()
+                store.add(new)
+                return new
+            }()
+            if !widget.appIDs.contains(target.id) && widget.isFull {
+                showFull = true
+                return
+            }
+            store.toggle(target.id, in: widget.id)
+            return
+        }
         if let existing = store.targets.first(where: { $0.name == app.name }) {
             store.remove(existing)
         } else {
@@ -102,14 +140,17 @@ struct TargetEditor: View {
     @Environment(\.dismiss) private var dismiss
 
     let original: LaunchTarget?
+    /// A new app goes straight onto this app widget, when set.
+    var widgetID: UUID?
     @State private var name: String
     @State private var kind: Kind
     @State private var value: String
     @State private var isMindful: Bool
     @State private var isHidden: Bool
 
-    init(target: LaunchTarget?) {
+    init(target: LaunchTarget?, widgetID: UUID? = nil) {
         original = target
+        self.widgetID = widgetID
         _name = State(initialValue: target?.name ?? "")
         _isMindful = State(initialValue: target?.isMindful ?? false)
         _isHidden = State(initialValue: target?.isHidden ?? false)
@@ -171,7 +212,11 @@ struct TargetEditor: View {
                     let target = makeTarget(id: original?.id ?? UUID())
                     if original == nil {
                         store.add(target)
-                        store.addToFirstOpenList(target.id)
+                        if let widgetID {
+                            store.toggle(target.id, in: widgetID)
+                        } else {
+                            store.addToFirstOpenList(target.id)
+                        }
                     } else {
                         store.update(target)
                     }

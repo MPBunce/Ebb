@@ -70,6 +70,10 @@ enum AppCatalog {
         .init(name: "Google Drive", scheme: "googledrive://", category: .productivity),
         .init(name: "Notion", scheme: "notion://", category: .productivity),
         .init(name: "Chrome", scheme: "googlechrome://", category: .productivity),
+        .init(name: "Google", scheme: "google://", category: .productivity),
+        .init(name: "Google Docs", scheme: "googledocs://", category: .productivity),
+        .init(name: "Google Sheets", scheme: "googlesheets://", category: .productivity),
+        .init(name: "Brave", scheme: "brave://", category: .productivity),
         .init(name: "Firefox", scheme: "firefox://", category: .productivity),
         .init(name: "Duolingo", scheme: "duolingo://", category: .productivity),
         .init(name: "Strava", scheme: "strava://", category: .productivity),
@@ -77,6 +81,7 @@ enum AppCatalog {
 
         // Media
         .init(name: "Spotify", scheme: "spotify://", category: .media),
+        .init(name: "YouTube Music", scheme: "youtubemusic://", category: .media),
         .init(name: "YouTube", scheme: "youtube://", category: .media),
         .init(name: "Netflix", scheme: "nflx://", category: .media),
         .init(name: "Audible", scheme: "audible://", category: .media),
