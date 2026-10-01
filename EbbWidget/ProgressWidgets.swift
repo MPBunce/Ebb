@@ -477,7 +477,19 @@ struct LifeWidgetView: View {
     var body: some View {
         Group {
             if let life = LifeProgress.load() {
-                content(life)
+                if family == .systemLarge {
+                    VStack(spacing: 14) {
+                        content(life)
+                        // "Remember that you will die": the Stoic reminder behind this widget.
+                        Text("memento mori")
+                            .font(.system(.footnote, design: .serif).italic())
+                            .opacity(0.5)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityLabel("Memento mori: remember that you will die")
+                    }
+                } else {
+                    content(life)
+                }
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Life").font(.headline)

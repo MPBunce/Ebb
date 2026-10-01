@@ -454,6 +454,8 @@ struct SetupGuideView: View {
             Section("Wallpaper") {
                 StepRow(number: 1, title: "Save a wallpaper", detail: "Settings › Colors & wallpaper › Save wallpaper to Photos.")
                 StepRow(number: 2, title: "Set it", detail: "In Photos, open the wallpaper and tap Share › Use as Wallpaper › Add › Set as Wallpaper Pair.")
+                SeamlessTips()
+                    .padding(.vertical, 4)
             }
             Section("Widgets") {
                 StepRow(number: 3, title: "Clear a page", detail: "Long-press the Home Screen, tap the page dots, and keep one page checked.")

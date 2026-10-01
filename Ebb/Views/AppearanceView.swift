@@ -154,13 +154,15 @@ struct WallpaperCard: View {
 }
 
 enum Wallpaper {
-    /// A solid wallpaper at the device's full resolution.
+    /// A solid wallpaper at the device's full resolution, in plain sRGB so it matches
+    /// the widgets' color exactly.
     static func render(background: HexColor) -> UIImage {
         let screen = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen
         let size = screen?.nativeBounds.size ?? CGSize(width: 1206, height: 2622)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true
+        format.preferredRange = .standard
         return UIGraphicsImageRenderer(size: size, format: format).image { context in
             background.uiColor.setFill()
             context.fill(CGRect(origin: .zero, size: size))
@@ -173,14 +175,20 @@ enum Wallpaper {
         case failed(String)
     }
 
-    /// Saves a wallpaper in `background`'s color to the photo library.
+    /// Saves a wallpaper in `background`'s color to the photo library. It's saved as a
+    /// lossless PNG; compressed formats can shift a flat color just enough to show
+    /// the widget edges.
     static func saveToPhotos(background: HexColor) async -> SaveResult {
-        let image = render(background: background)
+        guard let png = render(background: background).pngData() else {
+            return .failed("The wallpaper image couldn't be created.")
+        }
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
         guard status == .authorized || status == .limited else { return .denied }
         do {
             try await PHPhotoLibrary.shared().performChanges {
-                PHAssetChangeRequest.creationRequestForAsset(from: image)
+                let options = PHAssetResourceCreationOptions()
+                options.originalFilename = "Ebb Wallpaper \(background.hex.dropFirst()).png"
+                PHAssetCreationRequest.forAsset().addResource(with: .photo, data: png, options: options)
             }
             return .saved
         } catch {
@@ -249,7 +257,7 @@ struct WallpaperSaveFlow: View {
             StepRow(number: 1, title: "Open the wallpaper",
                     detail: "In Photos it's the newest picture, at the bottom of your library.")
             StepRow(number: 2, title: "Tap Share › Use as Wallpaper",
-                    detail: "Share is the square with an arrow, bottom left.")
+                    detail: "Share is the square with an arrow, bottom left. Don't zoom or swipe to another look; keep it on Natural.")
             StepRow(number: 3, title: "Tap Add › Set as Wallpaper Pair",
                     detail: "Home and Lock Screens then match your widgets.")
 
@@ -263,7 +271,44 @@ struct WallpaperSaveFlow: View {
             .buttonStyle(.borderedProminent)
             .tint(.primary)
             .foregroundStyle(Color(.systemBackground))
+
+            Divider().padding(.vertical, 4)
+            SeamlessTips()
         }
         .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+}
+
+/// The iPhone settings that can make widgets stand out from a matching wallpaper.
+struct SeamlessTips: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("If you can still see widget edges", systemImage: "eye")
+                .font(.subheadline.weight(.semibold))
+            tip("Home Screen isn't blurred",
+                "Settings › Wallpaper › Customize under the Home Screen › pick the photo itself, not Blur, Color, or Gradient.")
+            tip("Widgets aren't tinted",
+                "Long-press the Home Screen › Edit › Customize › choose Default or Dark. Clear and Tinted recolor widgets so they won't match.")
+            tip("Dark Mode doesn't dim the wallpaper",
+                "In Dark Mode iPhone can darken the wallpaper but not the widgets. Turn off Dark Appearance Dims Wallpaper in Settings › Wallpaper.")
+            tip("Colors match exactly",
+                "If you changed colors in Ebb, save the wallpaper again and reapply it. Widgets and wallpaper must be the same color.")
+        }
+    }
+
+    private func tip(_ title: String, _ detail: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: "checkmark.circle")
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.medium))
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }

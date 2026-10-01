@@ -20,6 +20,10 @@ struct DashboardView: View {
     @AppStorage("showSetupWhenDone") private var showSetupWhenDone = false
 
     @State private var widgetsAdded = false
+    @State private var path: [DashboardRoute] = []
+    /// Where the user was, so Ebb reopens to the same screen even after iOS closes it.
+    @SceneStorage("dashboardPath") private var savedPath = ""
+    @SceneStorage("dashboardSheet") private var savedSheet = ""
 
     private var steps: [SetupStep] {
         [
@@ -61,7 +65,7 @@ struct DashboardView: View {
         @Bindable var router = router
         @Bindable var store = store
 
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 Section {
                     WidgetPreview(apps: store.primaryApps, label: isSetUp ? "Your Home Screen" : "Preview")
@@ -70,11 +74,11 @@ struct DashboardView: View {
                 .listRowBackground(Color.clear)
 
                 Section {
-                    NavigationLink { WidgetsView() } label: {
+                    NavigationLink(value: DashboardRoute.widgets) {
                         SettingsRow(icon: "square.grid.2x2.fill", tint: .indigo, title: "Widgets",
                                     subtitle: "Everything on your Home Screen: apps, style, colors, and extras")
                     }
-                    NavigationLink { ManageAppsView() } label: {
+                    NavigationLink(value: DashboardRoute.apps) {
                         SettingsRow(icon: "square.stack", tint: .blue, title: "Apps",
                                     subtitle: "Add apps, fix links, choose mindful pauses")
                     }
@@ -95,6 +99,7 @@ struct DashboardView: View {
                     }
                 }
             }
+            .navigationDestination(for: DashboardRoute.self) { destination(for: $0) }
             .navigationTitle("Ebb")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -104,6 +109,9 @@ struct DashboardView: View {
             }
         }
         .task { await refreshWidgets() }
+        .onAppear(perform: restoreState)
+        .onChange(of: path) { _, newPath in savedPath = newPath.map(\.rawValue).joined(separator: ",") }
+        .onChange(of: router.sheet) { _, sheet in savedSheet = sheet?.rawValue ?? "" }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await refreshWidgets() } }
         }
@@ -158,7 +166,7 @@ struct DashboardView: View {
                         SetupStepRow(number: index + 1, step: step, showsChevron: true)
                     }
                 default:
-                    NavigationLink { destination(for: step.id) } label: {
+                    NavigationLink(value: route(for: step.id)) {
                         SetupStepRow(number: index + 1, step: step)
                     }
                 }
@@ -170,14 +178,30 @@ struct DashboardView: View {
         }
     }
 
-    @ViewBuilder
-    private func destination(for step: SetupStep.ID) -> some View {
+    private func route(for step: SetupStep.ID) -> DashboardRoute {
         switch step {
-        case .apps: WidgetsView()
+        case .apps, .widgets, .screenTime: .widgets
+        case .colors: .colors
+        case .wallpaper: .wallpaper
+        }
+    }
+
+    @ViewBuilder
+    private func destination(for route: DashboardRoute) -> some View {
+        switch route {
+        case .widgets: WidgetsView()
+        case .apps: ManageAppsView()
         case .colors: AppearanceView()
         case .wallpaper: WallpaperStepView()
-        case .widgets: WidgetsView()
-        case .screenTime: EmptyView()
+        }
+    }
+
+    private func restoreState() {
+        if path.isEmpty, !savedPath.isEmpty {
+            path = savedPath.split(separator: ",").compactMap { DashboardRoute(rawValue: String($0)) }
+        }
+        if router.sheet == nil, let sheet = HomeSheet(rawValue: savedSheet) {
+            router.sheet = sheet
         }
     }
 
@@ -345,6 +369,10 @@ private struct WallpaperStepView: View {
             ExplainerHeader(icon: "photo.on.rectangle", text: "iPhone doesn't let apps change your wallpaper, so Ebb saves one in your color to Photos and you set it from there. With matching colors, your widgets' edges disappear.")
             Section {
                 WallpaperSaveFlow(background: HexColor(hex: backgroundHex) ?? HexColor(red: 0, green: 0, blue: 0))
+            }
+            Section {
+                SeamlessTips()
+                    .padding(.vertical, 4)
             }
             Section {
                 Toggle("I've set it as my wallpaper", isOn: $wallpaperSet)

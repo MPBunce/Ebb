@@ -8,7 +8,7 @@ import ManagedSettings
 import Observation
 
 /// Sheets presented over the home screen.
-enum HomeSheet: String, Identifiable {
+enum HomeSheet: String, Identifiable, Codable {
     case settings, focus, insights
     var id: Self { self }
 }
@@ -17,6 +17,11 @@ enum HomeSheet: String, Identifiable {
 struct BreatherRequest: Identifiable {
     let id = UUID()
     let token: ApplicationToken
+}
+
+/// Screens pushed on the dashboard, restorable across launches.
+enum DashboardRoute: String, Codable, Hashable {
+    case widgets, apps, colors, wallpaper
 }
 
 @Observable
@@ -42,7 +47,8 @@ final class Router {
     func handle(_ link: DeepLink, store: LauncherStore) {
         switch link {
         case .home:
-            sheet = nil
+            // Opening Ebb from a widget picks up where you left off.
+            break
         case .focus:
             sheet = .focus
         case .launch(let id):
