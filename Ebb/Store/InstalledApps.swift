@@ -51,7 +51,7 @@ struct AppRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            AppMonogram(name: target.name)
+            AppIconView(name: target.name)
             VStack(alignment: .leading, spacing: 3) {
                 Text(target.name)
                     .font(.body)

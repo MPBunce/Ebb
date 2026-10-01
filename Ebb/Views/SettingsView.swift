@@ -214,9 +214,12 @@ struct ManageAppsView: View {
     @Environment(LauncherStore.self) private var store
     @State private var isAdding = false
     @State private var isScanning = false
+    @State private var query = ""
 
     private var apps: [LaunchTarget] {
-        store.targets.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        store.targets
+            .filter { query.isEmpty || $0.name.localizedStandardContains(query) }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     var body: some View {
@@ -283,6 +286,7 @@ struct ManageAppsView: View {
             }
         }
         .navigationTitle("Apps")
+        .searchable(text: $query, prompt: "Search your apps")
         .sheet(isPresented: $isAdding) { AddAppsView() }
         .sheet(isPresented: $isScanning) {
             NavigationStack { InstalledAppsView() }
@@ -296,6 +300,11 @@ struct InstalledAppsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var found: [CatalogApp] = []
     @State private var selected: Set<String> = []
+    @State private var query = ""
+
+    private var shown: [CatalogApp] {
+        query.isEmpty ? found : found.filter { $0.name.localizedStandardContains(query) }
+    }
 
     var body: some View {
         List {
@@ -304,12 +313,12 @@ struct InstalledAppsView: View {
                                        description: Text("Every app Ebb can find on this iPhone is already added."))
             } else {
                 Section {
-                    ForEach(found) { app in
+                    ForEach(shown) { app in
                         Button {
                             if selected.contains(app.id) { selected.remove(app.id) } else { selected.insert(app.id) }
                         } label: {
                             HStack(spacing: 14) {
-                                AppMonogram(name: app.name)
+                                AppIconView(name: app.name)
                                 Text(app.name).foregroundStyle(.primary)
                                 Spacer()
                                 Image(systemName: selected.contains(app.id) ? "checkmark.circle.fill" : "circle")
@@ -338,6 +347,7 @@ struct InstalledAppsView: View {
         }
         .navigationTitle("On this iPhone")
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search")
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Close", systemImage: "xmark") { dismiss() }

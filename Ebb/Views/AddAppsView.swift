@@ -84,7 +84,7 @@ struct CatalogPicker: View {
                             toggle(app)
                         } label: {
                             HStack(spacing: 14) {
-                                AppMonogram(name: app.name)
+                                AppIconView(name: app.name)
                                 Text(app.name)
                                 Spacer()
                                 Image(systemName: isChecked(app) ? "checkmark.circle.fill" : "plus.circle")

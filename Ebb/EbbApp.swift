@@ -13,6 +13,7 @@ struct EbbApp: App {
     @State private var store = LauncherStore()
     @State private var focus = FocusManager()
     @State private var router = Router()
+    @State private var icons = AppIcons()
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,7 @@ struct EbbApp: App {
                 .environment(store)
                 .environment(focus)
                 .environment(router)
+                .environment(icons)
                 .onOpenURL { url in
                     if let link = DeepLink(url: url) {
                         router.handle(link, store: store)
