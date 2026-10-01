@@ -6,27 +6,28 @@
 //
 
 import SwiftUI
-import SwiftData
+import UIKit
 
 @main
 struct EbbApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
+    @State private var store = LauncherStore()
+    @State private var focus = FocusManager()
+    @State private var router = Router()
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environment(store)
+                .environment(focus)
+                .environment(router)
+                .onOpenURL { url in
+                    if let link = DeepLink(url: url) {
+                        router.handle(link, store: store)
+                    } else if url.scheme != DeepLink.scheme {
+                        // A widget link to another app that iOS routed through Ebb: pass it on.
+                        UIApplication.shared.open(url)
+                    }
+                }
         }
-        .modelContainer(sharedModelContainer)
     }
 }

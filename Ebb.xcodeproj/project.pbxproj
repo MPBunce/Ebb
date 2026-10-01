@@ -6,6 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		EB0000000000000000000008 /* EbbWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB0000000000000000000005 /* EbbWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EB0000000000000000000015 /* EbbMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB0000000000000000000012 /* EbbMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EB0000000000000000000022 /* EbbShield.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB000000000000000000001F /* EbbShield.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		EB0000000000000000000105 /* EbbShieldAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = EB0000000000000000000102 /* EbbShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		36A918E6306E985B00563E4C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,17 +28,107 @@
 			remoteGlobalIDString = 36A918D5306E985900563E4C;
 			remoteInfo = Ebb;
 		};
+		EB000000000000000000000C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 36A918CE306E985900563E4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EB0000000000000000000004;
+			remoteInfo = EbbWidget;
+		};
+		EB0000000000000000000019 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 36A918CE306E985900563E4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EB0000000000000000000011;
+			remoteInfo = EbbMonitor;
+		};
+		EB0000000000000000000026 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 36A918CE306E985900563E4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EB000000000000000000001E;
+			remoteInfo = EbbShield;
+		};
+		EB0000000000000000000109 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 36A918CE306E985900563E4C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EB0000000000000000000101;
+			remoteInfo = EbbShieldAction;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		EB000000000000000000002B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				EB0000000000000000000105 /* EbbShieldAction.appex in Embed Foundation Extensions */,
+				EB0000000000000000000008 /* EbbWidget.appex in Embed Foundation Extensions */,
+				EB0000000000000000000015 /* EbbMonitor.appex in Embed Foundation Extensions */,
+				EB0000000000000000000022 /* EbbShield.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		36A918D6306E985900563E4C /* Ebb.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ebb.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		36A918E5306E985B00563E4C /* EbbTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EbbTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		36A918EF306E985B00563E4C /* EbbUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EbbUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB0000000000000000000005 /* EbbWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = EbbWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB0000000000000000000012 /* EbbMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = EbbMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB000000000000000000001F /* EbbShield.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = EbbShield.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB0000000000000000000102 /* EbbShieldAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = EbbShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		EB0000000000000000000003 /* Exceptions for "Ebb" folder in "Ebb" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 36A918D5306E985900563E4C /* Ebb */;
+		};
+		EB0000000000000000000007 /* Exceptions for "EbbWidget" folder in "EbbWidget" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EB0000000000000000000004 /* EbbWidget */;
+		};
+		EB0000000000000000000014 /* Exceptions for "EbbMonitor" folder in "EbbMonitor" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EB0000000000000000000011 /* EbbMonitor */;
+		};
+		EB0000000000000000000021 /* Exceptions for "EbbShield" folder in "EbbShield" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EB000000000000000000001E /* EbbShield */;
+		};
+		EB0000000000000000000104 /* Exceptions for "EbbShieldAction" folder in "EbbShieldAction" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = EB0000000000000000000101 /* EbbShieldAction */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		36A918D8306E985900563E4C /* Ebb */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EB0000000000000000000003 /* Exceptions for "Ebb" folder in "Ebb" target */,
+			);
 			path = Ebb;
 			sourceTree = "<group>";
 		};
@@ -43,6 +140,48 @@
 		36A918F2306E985B00563E4C /* EbbUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = EbbUITests;
+			sourceTree = "<group>";
+		};
+		EB0000000000000000000001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		EB0000000000000000000002 /* SharedScreenTime */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SharedScreenTime;
+			sourceTree = "<group>";
+		};
+		EB0000000000000000000006 /* EbbWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EB0000000000000000000007 /* Exceptions for "EbbWidget" folder in "EbbWidget" target */,
+			);
+			path = EbbWidget;
+			sourceTree = "<group>";
+		};
+		EB0000000000000000000013 /* EbbMonitor */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EB0000000000000000000014 /* Exceptions for "EbbMonitor" folder in "EbbMonitor" target */,
+			);
+			path = EbbMonitor;
+			sourceTree = "<group>";
+		};
+		EB0000000000000000000020 /* EbbShield */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EB0000000000000000000021 /* Exceptions for "EbbShield" folder in "EbbShield" target */,
+			);
+			path = EbbShield;
+			sourceTree = "<group>";
+		};
+		EB0000000000000000000103 /* EbbShieldAction */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				EB0000000000000000000104 /* Exceptions for "EbbShieldAction" folder in "EbbShieldAction" target */,
+			);
+			path = EbbShieldAction;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +208,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EB000000000000000000000A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000017 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000024 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000107 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -76,6 +243,12 @@
 			isa = PBXGroup;
 			children = (
 				36A918D8306E985900563E4C /* Ebb */,
+				EB0000000000000000000001 /* Shared */,
+				EB0000000000000000000002 /* SharedScreenTime */,
+				EB0000000000000000000006 /* EbbWidget */,
+				EB0000000000000000000013 /* EbbMonitor */,
+				EB0000000000000000000020 /* EbbShield */,
+				EB0000000000000000000103 /* EbbShieldAction */,
 				36A918E8306E985B00563E4C /* EbbTests */,
 				36A918F2306E985B00563E4C /* EbbUITests */,
 				36A918D7306E985900563E4C /* Products */,
@@ -88,6 +261,10 @@
 				36A918D6306E985900563E4C /* Ebb.app */,
 				36A918E5306E985B00563E4C /* EbbTests.xctest */,
 				36A918EF306E985B00563E4C /* EbbUITests.xctest */,
+				EB0000000000000000000102 /* EbbShieldAction.appex */,
+				EB0000000000000000000005 /* EbbWidget.appex */,
+				EB0000000000000000000012 /* EbbMonitor.appex */,
+				EB000000000000000000001F /* EbbShield.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,13 +279,20 @@
 				36A918D2306E985900563E4C /* Sources */,
 				36A918D3306E985900563E4C /* Frameworks */,
 				36A918D4306E985900563E4C /* Resources */,
+				EB000000000000000000002B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				EB000000000000000000010A /* PBXTargetDependency */,
+				EB000000000000000000000D /* PBXTargetDependency */,
+				EB000000000000000000001A /* PBXTargetDependency */,
+				EB0000000000000000000027 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				36A918D8306E985900563E4C /* Ebb */,
+				EB0000000000000000000001 /* Shared */,
+				EB0000000000000000000002 /* SharedScreenTime */,
 			);
 			name = Ebb;
 			packageProductDependencies = (
@@ -163,6 +347,101 @@
 			productReference = 36A918EF306E985B00563E4C /* EbbUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		EB0000000000000000000004 /* EbbWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB000000000000000000000E /* Build configuration list for PBXNativeTarget "EbbWidget" */;
+			buildPhases = (
+				EB0000000000000000000009 /* Sources */,
+				EB000000000000000000000A /* Frameworks */,
+				EB000000000000000000000B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EB0000000000000000000001 /* Shared */,
+				EB0000000000000000000006 /* EbbWidget */,
+			);
+			name = EbbWidget;
+			packageProductDependencies = (
+			);
+			productName = EbbWidget;
+			productReference = EB0000000000000000000005 /* EbbWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		EB0000000000000000000011 /* EbbMonitor */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB000000000000000000001B /* Build configuration list for PBXNativeTarget "EbbMonitor" */;
+			buildPhases = (
+				EB0000000000000000000016 /* Sources */,
+				EB0000000000000000000017 /* Frameworks */,
+				EB0000000000000000000018 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EB0000000000000000000001 /* Shared */,
+				EB0000000000000000000002 /* SharedScreenTime */,
+				EB0000000000000000000013 /* EbbMonitor */,
+			);
+			name = EbbMonitor;
+			packageProductDependencies = (
+			);
+			productName = EbbMonitor;
+			productReference = EB0000000000000000000012 /* EbbMonitor.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		EB000000000000000000001E /* EbbShield */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB0000000000000000000028 /* Build configuration list for PBXNativeTarget "EbbShield" */;
+			buildPhases = (
+				EB0000000000000000000023 /* Sources */,
+				EB0000000000000000000024 /* Frameworks */,
+				EB0000000000000000000025 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EB0000000000000000000001 /* Shared */,
+				EB0000000000000000000002 /* SharedScreenTime */,
+				EB0000000000000000000020 /* EbbShield */,
+			);
+			name = EbbShield;
+			packageProductDependencies = (
+			);
+			productName = EbbShield;
+			productReference = EB000000000000000000001F /* EbbShield.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		EB0000000000000000000101 /* EbbShieldAction */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EB000000000000000000010B /* Build configuration list for PBXNativeTarget "EbbShieldAction" */;
+			buildPhases = (
+				EB0000000000000000000106 /* Sources */,
+				EB0000000000000000000107 /* Frameworks */,
+				EB0000000000000000000108 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				EB0000000000000000000001 /* Shared */,
+				EB0000000000000000000002 /* SharedScreenTime */,
+				EB0000000000000000000103 /* EbbShieldAction */,
+			);
+			name = EbbShieldAction;
+			packageProductDependencies = (
+			);
+			productName = EbbShieldAction;
+			productReference = EB0000000000000000000102 /* EbbShieldAction.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -171,7 +450,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2620;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					36A918D5306E985900563E4C = {
 						CreatedOnToolsVersion = 26.2;
@@ -183,6 +462,18 @@
 					36A918EE306E985B00563E4C = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 36A918D5306E985900563E4C;
+					};
+					EB0000000000000000000004 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					EB0000000000000000000011 = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					EB000000000000000000001E = {
+						CreatedOnToolsVersion = 26.2;
+					};
+					EB0000000000000000000101 = {
+						CreatedOnToolsVersion = 26.2;
 					};
 				};
 			};
@@ -203,6 +494,10 @@
 				36A918D5306E985900563E4C /* Ebb */,
 				36A918E4306E985B00563E4C /* EbbTests */,
 				36A918EE306E985B00563E4C /* EbbUITests */,
+				EB0000000000000000000004 /* EbbWidget */,
+				EB0000000000000000000011 /* EbbMonitor */,
+				EB000000000000000000001E /* EbbShield */,
+				EB0000000000000000000101 /* EbbShieldAction */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +518,34 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		36A918ED306E985B00563E4C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB000000000000000000000B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000018 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000025 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000108 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +576,34 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EB0000000000000000000009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000016 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000023 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EB0000000000000000000106 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +616,26 @@
 			isa = PBXTargetDependency;
 			target = 36A918D5306E985900563E4C /* Ebb */;
 			targetProxy = 36A918F0306E985B00563E4C /* PBXContainerItemProxy */;
+		};
+		EB000000000000000000000D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EB0000000000000000000004 /* EbbWidget */;
+			targetProxy = EB000000000000000000000C /* PBXContainerItemProxy */;
+		};
+		EB000000000000000000001A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EB0000000000000000000011 /* EbbMonitor */;
+			targetProxy = EB0000000000000000000019 /* PBXContainerItemProxy */;
+		};
+		EB0000000000000000000027 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EB000000000000000000001E /* EbbShield */;
+			targetProxy = EB0000000000000000000026 /* PBXContainerItemProxy */;
+		};
+		EB000000000000000000010A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EB0000000000000000000101 /* EbbShieldAction */;
+			targetProxy = EB0000000000000000000109 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -328,6 +699,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -385,6 +757,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -395,16 +768,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Ebb/Ebb.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 69ML2GA87D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Ebb/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Ebb;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Ebb saves wallpapers that match your widgets to Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -427,16 +804,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Ebb/Ebb.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 69ML2GA87D;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Ebb/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Ebb;
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Ebb saves wallpapers that match your widgets to Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -538,6 +919,238 @@
 			};
 			name = Release;
 		};
+		EB000000000000000000000F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = EbbWidget/EbbWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 69ML2GA87D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EbbWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EbbWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mpbunce.Ebb.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EB0000000000000000000010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = EbbWidget/EbbWidget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 69ML2GA87D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EbbWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EbbWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mpbunce.Ebb.Widget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		EB000000000000000000001C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = EbbMonitor/EbbMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 69ML2GA87D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EbbMonitor/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EbbMonitor;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mpbunce.Ebb.Monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EB000000000000000000001D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = EbbMonitor/EbbMonitor.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 69ML2GA87D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EbbMonitor/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EbbMonitor;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mpbunce.Ebb.Monitor;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		EB0000000000000000000029 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = EbbShield/EbbShield.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 69ML2GA87D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EbbShield/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EbbShield;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mpbunce.Ebb.Shield;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EB000000000000000000002A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = EbbShield/EbbShield.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 69ML2GA87D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EbbShield/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EbbShield;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mpbunce.Ebb.Shield;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		EB000000000000000000010C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = EbbShieldAction/EbbShieldAction.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 69ML2GA87D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EbbShieldAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EbbShieldAction;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mpbunce.Ebb.ShieldAction;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		EB000000000000000000010D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = EbbShieldAction/EbbShieldAction.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 69ML2GA87D;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = EbbShieldAction/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = EbbShieldAction;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = mpbunce.Ebb.ShieldAction;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -573,6 +1186,42 @@
 			buildConfigurations = (
 				36A91900306E985B00563E4C /* Debug */,
 				36A91901306E985B00563E4C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EB000000000000000000000E /* Build configuration list for PBXNativeTarget "EbbWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EB000000000000000000000F /* Debug */,
+				EB0000000000000000000010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EB000000000000000000001B /* Build configuration list for PBXNativeTarget "EbbMonitor" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EB000000000000000000001C /* Debug */,
+				EB000000000000000000001D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EB0000000000000000000028 /* Build configuration list for PBXNativeTarget "EbbShield" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EB0000000000000000000029 /* Debug */,
+				EB000000000000000000002A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		EB000000000000000000010B /* Build configuration list for PBXNativeTarget "EbbShieldAction" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EB000000000000000000010C /* Debug */,
+				EB000000000000000000010D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
