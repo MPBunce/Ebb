@@ -300,32 +300,39 @@ struct WallpaperMatcherTests {
         return context.makeImage()!
     }
 
-    @Test func correctsADarkerWallpaper() throws {
+    @Test func tunesWidgetsToADarkerWallpaper() throws {
         let paper = HexColor(hex: "#F3EFE6")!
         // iOS drew the wallpaper about 4% darker than the widget.
         let image = screenshot(wallpaper: (233, 229, 221), widget: (243, 239, 230))
-        let measurement = try WallpaperMatcher.measure(image, target: paper).get()
+        let measurement = try WallpaperMatcher.measure(image, base: paper, widgetColor: paper).get()
         #expect(measurement.difference > 5)
 
-        let fixed = WallpaperMatcher.corrected(saved: paper, measurement: measurement)
-        #expect(fixed.red > paper.red - 0.001)
-        // Rendering the corrected wallpaper the same way lands back on the widget color.
-        let rendered = fixed.red * (233.0 / 243.0) * 255
-        #expect(abs(rendered - 243) < 2)
+        let tuned = WallpaperMatcher.widgetColor(current: paper, measurement: measurement)
+        // The widgets now draw the color the wallpaper actually shows.
+        #expect(abs(tuned.red * 255 - 233) < 1.5)
+        #expect(abs(tuned.blue * 255 - 221) < 1.5)
+    }
+
+    @Test func worksForWhite() throws {
+        let white = HexColor(hex: "#FFFFFF")!
+        let image = screenshot(wallpaper: (245, 245, 245), widget: (255, 255, 255))
+        let measurement = try WallpaperMatcher.measure(image, base: white, widgetColor: white).get()
+        let tuned = WallpaperMatcher.widgetColor(current: white, measurement: measurement)
+        #expect(abs(tuned.red * 255 - 245) < 1.5)
     }
 
     @Test func reportsAPerfectMatch() throws {
         let paper = HexColor(hex: "#F3EFE6")!
         let image = screenshot(wallpaper: (243, 239, 230), widget: (243, 239, 230))
-        let measurement = try WallpaperMatcher.measure(image, target: paper).get()
+        let measurement = try WallpaperMatcher.measure(image, base: paper, widgetColor: paper).get()
         #expect(measurement.difference < 1)
     }
 
-    @Test func failsWithoutAnEbbWidget() {
+    @Test func failsWithoutTheWallpaper() {
         let paper = HexColor(hex: "#F3EFE6")!
         let image = screenshot(wallpaper: (20, 20, 20), widget: (40, 90, 200))
-        #expect(throws: WallpaperMatcher.Failure.noWidget) {
-            try WallpaperMatcher.measure(image, target: paper).get()
+        #expect(throws: WallpaperMatcher.Failure.noWallpaper) {
+            try WallpaperMatcher.measure(image, base: paper, widgetColor: paper).get()
         }
     }
 }

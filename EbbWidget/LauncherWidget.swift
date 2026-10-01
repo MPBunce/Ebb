@@ -95,26 +95,6 @@ struct LauncherConfigurationIntent: WidgetConfigurationIntent {
     var showClock: Bool
 }
 
-/// Opens an app straight from the widget. Running as an intent lets iOS open the URL
-/// itself, instead of launching Ebb first the way a plain widget link does.
-struct OpenLaunchURLIntent: AppIntent {
-    static let title: LocalizedStringResource = "Open App"
-    static let isDiscoverable = false
-
-    @Parameter(title: "URL")
-    var url: URL
-
-    init() {}
-
-    init(url: URL) {
-        self.url = url
-    }
-
-    func perform() async throws -> some IntentResult & OpensIntent {
-        .result(opensIntent: OpenURLIntent(url))
-    }
-}
-
 // MARK: - Timeline
 
 struct LauncherEntry: TimelineEntry {
@@ -230,7 +210,7 @@ struct LauncherWidgetView: View {
     private func column(_ apps: [WidgetApp], alignment: ListAlignment) -> some View {
         VStack(alignment: alignment.horizontal, spacing: rowSpacing) {
             ForEach(apps) { app in
-                Button(intent: OpenLaunchURLIntent(url: app.widgetURL)) {
+                Link(destination: DeepLink.launch(app.id).url) {
                     Text(app.name)
                         .font(.system(size: textSize, weight: .light))
                         .lineLimit(1)
@@ -238,7 +218,6 @@ struct LauncherWidgetView: View {
                         .frame(maxWidth: .infinity, alignment: alignment.frame)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
             }
         }
         .frame(maxWidth: .infinity, alignment: alignment.frame)
@@ -296,7 +275,7 @@ private struct EbbWidgetStyle: ViewModifier {
             content
                 .fontDesign(WidgetStyle.typeface.design)
                 .foregroundStyle(Appearance.text.color)
-                .containerBackground(Appearance.background.color, for: .widget)
+                .containerBackground(Appearance.widgetBackground.color, for: .widget)
         }
     }
 }

@@ -81,6 +81,12 @@ nonisolated enum Appearance {
             ?? HexColor(red: 0, green: 0, blue: 0)
     }
 
+    /// The color widgets draw with: the background color, tuned to match how this
+    /// iPhone actually renders the matching wallpaper.
+    static var widgetBackground: HexColor {
+        WidgetTuning.widgetColor(for: background)
+    }
+
     static var text: HexColor {
         HexColor(hex: AppGroup.defaults.string(forKey: AppGroup.Key.textHex) ?? defaultText)
             ?? HexColor(red: 0.95, green: 0.95, blue: 0.95)
@@ -179,5 +185,23 @@ nonisolated enum WidgetStyle {
 
     static var typeface: Typeface {
         AppGroup.defaults.string(forKey: AppGroup.Key.typeface).flatMap(Typeface.init(rawValue:)) ?? .system
+    }
+}
+
+/// Widget colors tuned to blend into the wallpaper on this iPhone, keyed by background color.
+/// iOS renders photo wallpapers a little differently from widget backgrounds (most visibly
+/// on light colors), so the widgets are adjusted to match what's really on screen.
+nonisolated enum WidgetTuning {
+    private static let key = "widgetTuning"
+
+    static func widgetColor(for background: HexColor) -> HexColor {
+        let stored = AppGroup.defaults.dictionary(forKey: key) as? [String: String] ?? [:]
+        return stored[background.hex].flatMap(HexColor.init(hex:)) ?? background
+    }
+
+    static func setWidgetColor(_ color: HexColor?, for background: HexColor) {
+        var stored = AppGroup.defaults.dictionary(forKey: key) as? [String: String] ?? [:]
+        stored[background.hex] = color?.hex
+        AppGroup.defaults.set(stored, forKey: key)
     }
 }

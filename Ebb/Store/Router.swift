@@ -52,14 +52,13 @@ final class Router {
         case .focus:
             sheet = .focus
         case .launch(let id):
-            guard sheet != nil else {
-                store.requestLaunch(id: id)
-                return
-            }
-            // Let the sheet finish dismissing before a mindful pause covers the screen.
-            sheet = nil
+            // Widget taps come through Ebb so the app always opens (and mindful pauses
+            // and Insights see every launch). Wait a moment for Ebb to finish
+            // activating; iOS won't open another app before then.
+            let isMindful = store.target(id: id)?.isMindful ?? false
+            if isMindful { sheet = nil }
             Task {
-                try? await Task.sleep(for: .milliseconds(400))
+                try? await Task.sleep(for: .milliseconds(isMindful ? 400 : 150))
                 store.requestLaunch(id: id)
             }
         }
