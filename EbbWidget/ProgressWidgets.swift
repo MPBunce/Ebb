@@ -402,10 +402,11 @@ struct YearWidget: Widget {
 // MARK: - Life
 
 enum LifeStyle: String, AppEnum {
-    case percent, bar, years, ring, countdown
+    case breakdown, percent, bar, years, ring, countdown
 
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Style"
     static let caseDisplayRepresentations: [LifeStyle: DisplayRepresentation] = [
+        .breakdown: "Years, Weeks & Days",
         .percent: "Percent",
         .bar: "Bar",
         .years: "Years as Dots",
@@ -417,6 +418,7 @@ enum LifeStyle: String, AppEnum {
 
     var name: String {
         switch self {
+        case .breakdown: "Years, weeks & days"
         case .percent: "Percent"
         case .bar: "Bar"
         case .years: "Years"
@@ -439,10 +441,10 @@ struct LifeConfigurationIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Life"
     static let description = IntentDescription("How much of an average life you've lived.")
 
-    @Parameter(title: "Style", default: .percent)
+    @Parameter(title: "Style", default: .breakdown)
     var style: LifeStyle
 
-    @Parameter(title: "Show", default: .lived)
+    @Parameter(title: "Show", default: .remaining)
     var framing: LifeFraming
 
     @Parameter(title: "Show Progress Bar", default: true)
@@ -505,12 +507,19 @@ struct LifeWidgetView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Life · \(percent(value, digits: 1))").font(.headline)
                 Gauge(value: value) { EmptyView() }.gaugeStyle(.accessoryLinearCapacity)
-                Text("\(weeks) weeks left").font(.caption)
+                Text(life.isInExtraTime(at: entry.date)
+                     ? "Extra time: +\(life.breakdown(remaining: true, at: entry.date).weeks.formatted()) weeks"
+                     : "\(weeks) weeks left").font(.caption)
             }
         } else if style.isPlus && !EbbPlus.isActive {
             PlusLocked(name: style.name)
         } else {
             switch style {
+            case .breakdown:
+                let span = life.breakdown(remaining: showsRemaining, at: entry.date)
+                breakdownView(span,
+                              title: span.isExtraTime ? "extra time" : (showsRemaining ? "life remaining" : "life lived"),
+                              value: span.isExtraTime ? 1 : value)
             case .percent:
                 VStack(alignment: .leading, spacing: 6) {
                     Caption(text: label)
@@ -523,7 +532,7 @@ struct LifeWidgetView: View {
                     if entry.configuration.showBar {
                         ThinBar(value: value, height: family == .systemLarge ? 8 : 5).padding(.vertical, 6)
                     }
-                    Caption(text: "\(weeks) weeks to go")
+                    Caption(text: life.isInExtraTime(at: entry.date) ? "in extra time" : "\(weeks) weeks to go")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             case .bar:
@@ -569,15 +578,16 @@ struct LifeWidgetView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .countdown:
+                let span = life.breakdown(remaining: true, at: entry.date)
                 VStack(alignment: .leading, spacing: 2) {
-                    Caption(text: "make them count")
+                    Caption(text: span.isExtraTime ? "extra time" : "make them count")
                     Spacer(minLength: 0)
-                    Text(weeks)
+                    Text(span.isExtraTime ? "+\(span.weeks.formatted())" : weeks)
                         .font(.system(size: family.heroSize, weight: .thin))
                         .monospacedDigit()
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
-                    Text("weeks left").font(.subheadline.weight(.light))
+                    Text(span.isExtraTime ? "weeks of extra time" : "weeks left").font(.subheadline.weight(.light))
                     if entry.configuration.showBar {
                         ThinBar(value: lived, height: family == .systemLarge ? 8 : 5).padding(.top, 8)
                     }
@@ -588,13 +598,71 @@ struct LifeWidgetView: View {
     }
 }
 
+private extension LifeWidgetView {
+    /// The same span in years, weeks, and days, each rounded.
+    @ViewBuilder
+    func breakdownView(_ span: LifeProgress.Breakdown, title: String, value: Double) -> some View {
+        let sign = span.isExtraTime ? "+" : ""
+        let rows = [
+            (sign + span.years.formatted(), span.years == 1 ? "year" : "years"),
+            (sign + span.weeks.formatted(), span.weeks == 1 ? "week" : "weeks"),
+            (sign + span.days.formatted(), span.days == 1 ? "day" : "days"),
+        ]
+        if family == .systemMedium {
+            VStack(alignment: .leading, spacing: 10) {
+                Caption(text: title)
+                Spacer(minLength: 0)
+                HStack(alignment: .firstTextBaseline) {
+                    ForEach(rows, id: \.1) { number, unit in
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(number)
+                                .font(.system(size: 30, weight: .thin))
+                                .monospacedDigit()
+                                .minimumScaleFactor(0.5)
+                                .lineLimit(1)
+                            Text(unit).font(.caption).opacity(0.7)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                if entry.configuration.showBar {
+                    ThinBar(value: value, height: 5)
+                }
+            }
+        } else {
+            let size: CGFloat = family == .systemLarge ? 44 : 22
+            VStack(alignment: .leading, spacing: family == .systemLarge ? 10 : 2) {
+                Caption(text: title)
+                Spacer(minLength: 0)
+                ForEach(rows, id: \.1) { number, unit in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(number)
+                            .font(.system(size: size, weight: .thin))
+                            .monospacedDigit()
+                            .minimumScaleFactor(0.5)
+                            .lineLimit(1)
+                        Text(unit)
+                            .font(family == .systemLarge ? .title3.weight(.light) : .caption)
+                            .opacity(0.7)
+                    }
+                }
+                if entry.configuration.showBar {
+                    ThinBar(value: value, height: family == .systemLarge ? 8 : 4)
+                        .padding(.top, family == .systemLarge ? 8 : 4)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
 struct LifeWidget: Widget {
     var body: some WidgetConfiguration {
         AppIntentConfiguration(kind: "EbbLife", intent: LifeConfigurationIntent.self, provider: LifeProvider()) { entry in
             LifeWidgetView(entry: entry)
         }
         .configurationDisplayName("Life")
-        .description("A gentle memento mori: how much of an average life you've lived. Edit to change style.")
+        .description("A gentle memento mori: the time you have left, in years, weeks, and days. Edit to change style or show time lived.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
         .contentMarginsDisabled()
     }

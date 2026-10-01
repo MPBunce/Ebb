@@ -74,6 +74,38 @@ nonisolated struct LifeProgress {
         return min(max(date.timeIntervalSince(birthDate) / total, 0), 1)
     }
 
+    /// A span of time as rounded totals in each unit, e.g. 44 years, 2,259 weeks, 15,815 days.
+    struct Breakdown: Equatable {
+        var years: Int
+        var weeks: Int
+        var days: Int
+        /// Past the average life expectancy: the numbers count time beyond it, like
+        /// extra time at the end of a match.
+        var isExtraTime = false
+    }
+
+    /// Whether `date` is past the average life expectancy.
+    func isInExtraTime(at date: Date = .now, calendar: Calendar = .current) -> Bool {
+        date > endDate(calendar: calendar)
+    }
+
+    /// Time lived so far, or left to go, in years, weeks, and days. Once the time left
+    /// runs out, "remaining" counts the extra time instead.
+    func breakdown(remaining: Bool, at date: Date = .now, calendar: Calendar = .current) -> Breakdown {
+        let extraTime = remaining && isInExtraTime(at: date, calendar: calendar)
+        let seconds = remaining
+            ? abs(endDate(calendar: calendar).timeIntervalSince(date))
+            : max(date.timeIntervalSince(birthDate), 0)
+        let years = seconds / Self.secondsPerYear
+        return Breakdown(
+            // Years lived count like an age (32, not 33); everything else rounds.
+            years: remaining ? Int(years.rounded()) : Int((years + 1e-9).rounded(.down)),
+            weeks: Int((seconds / (7 * 86400)).rounded()),
+            days: Int((seconds / 86400).rounded()),
+            isExtraTime: extraTime
+        )
+    }
+
     func weeksRemaining(at date: Date = .now, calendar: Calendar = .current) -> Int {
         max(calendar.dateComponents([.weekOfYear], from: date, to: endDate(calendar: calendar)).weekOfYear ?? 0, 0)
     }

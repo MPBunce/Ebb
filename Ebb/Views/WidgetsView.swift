@@ -43,7 +43,7 @@ struct WidgetsView: View {
             statusSection
 
             Section {
-                Text("Apps and Spacer come in medium and large; the rest also come in small. Long-press one › Edit Widget for its options:\n\n**Clock**: style and date.\n**Year**: today, this week, month, or year, shown as a percent, bar, dots, ring, or countdown.\n**Life**: percent, bar, years as dots, ring, or weeks left, as life lived or remaining.\n**Time Saved**: a number, a breakdown, or what it adds up to, in minutes, hours, or days.\n**Spacer**: an empty block in your widget color for spacing things out.")
+                Text("Apps and Spacer come in medium and large; the rest also come in small. Long-press one › Edit Widget for its options:\n\n**Clock**: style and date.\n**Year**: today, this week, month, or year, shown as a percent, bar, dots, ring, or countdown.\n**Life**: years, weeks & days, percent, bar, years as dots, ring, or weeks left, as life lived or remaining.\n**Time Saved**: a number, a breakdown, or what it adds up to, in minutes, hours, or days.\n**Spacer**: an empty block in your widget color for spacing things out.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } header: {

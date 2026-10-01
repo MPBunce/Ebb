@@ -188,6 +188,32 @@ struct WidgetMathTests {
         #expect(male.fraction(at: birth.addingTimeInterval(-1)) == 0)
     }
 
+    @Test func lifeBreakdownRoundsEachUnit() {
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        let birth = now.addingTimeInterval(-10 * 365.2425 * 86400)
+        let life = LifeProgress(birthDate: birth, expectancyYears: 80)
+        let lived = life.breakdown(remaining: false, at: now)
+        #expect(lived.years == 10)
+        #expect(lived.weeks == 522)
+        #expect(lived.days == 3652)
+        let left = life.breakdown(remaining: true, at: now)
+        #expect(left.years == 70)
+
+        // Ebb stores age as halfway to the next birthday; lived years still read as the age.
+        let fromAge = LifeProgress(birthDate: LifeProgress.estimatedBirthDate(age: 32, now: now), expectancyYears: 80)
+        #expect(fromAge.breakdown(remaining: false, at: now).years == 32)
+    }
+
+    @Test func pastExpectancyCountsExtraTime() {
+        let now = Date(timeIntervalSince1970: 1_790_000_000)
+        // 90.5 years old against 75.8 expected: about 15 years of extra time.
+        let life = LifeProgress(birthDate: LifeProgress.estimatedBirthDate(age: 90, now: now), expectancyYears: 75.8)
+        let span = life.breakdown(remaining: true, at: now)
+        #expect(span.isExtraTime)
+        #expect(span.years == 15)
+        #expect(!life.breakdown(remaining: false, at: now).isExtraTime)
+    }
+
     @Test func timeSavedCombinesLetGoAndFocus() {
         let saved = TimeSaved(since: .now, resistedCount: 6, focusMinutes: 90, minutesPerResist: 10)
         #expect(saved.totalMinutes == 150)
