@@ -7,6 +7,7 @@
 //
 
 import Photos
+import PhotosUI
 import SwiftUI
 import WidgetKit
 
@@ -46,6 +47,8 @@ struct AppearanceView: View {
             } footer: {
                 Text("Because the wallpaper and widgets share one color, the widgets blend in and only the app names show. iPhone doesn't let apps change your wallpaper, so you set it from Photos.")
             }
+
+            WallpaperMatchSection(background: background)
 
             Section {
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -179,7 +182,8 @@ enum Wallpaper {
     /// lossless PNG; compressed formats can shift a flat color just enough to show
     /// the widget edges.
     static func saveToPhotos(background: HexColor) async -> SaveResult {
-        guard let png = render(background: background).pngData() else {
+        // Use the color tuned for this iPhone, if the user has matched it.
+        guard let png = render(background: WallpaperTuning.wallpaperColor(for: background)).pngData() else {
             return .failed("The wallpaper image couldn't be created.")
         }
         let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
@@ -310,5 +314,127 @@ struct SeamlessTips: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Measures a Home Screen screenshot and tunes the wallpaper so widget edges disappear.
+struct WallpaperMatchSection: View {
+    let background: HexColor
+
+    @State private var pickedItem: PhotosPickerItem?
+    @State private var status: Status?
+    @State private var tuned: HexColor
+    @State private var saveResult: Wallpaper.SaveResult?
+
+    enum Status: Equatable {
+        case checking
+        case perfect
+        case corrected(Double)
+        case failed(String)
+    }
+
+    init(background: HexColor) {
+        self.background = background
+        _tuned = State(initialValue: WallpaperTuning.wallpaperColor(for: background))
+    }
+
+    var body: some View {
+        Section {
+            PhotosPicker(selection: $pickedItem, matching: .screenshots) {
+                Label("Match from a screenshot", systemImage: "wand.and.stars")
+            }
+            .onChange(of: pickedItem) { _, item in
+                guard let item else { return }
+                Task { await analyze(item) }
+            }
+
+            if let status {
+                switch status {
+                case .checking:
+                    ProgressView("Measuring…")
+                case .perfect:
+                    Label("Your wallpaper already matches your widgets.", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                case .corrected(let difference):
+                    Text("Your wallpaper was \(Int(difference.rounded())) step\(Int(difference.rounded()) == 1 ? "" : "s") off. Ebb made a corrected one: save it and set it as your wallpaper again.")
+                        .font(.footnote)
+                case .failed(let message):
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            HStack {
+                Text("Fine-tune by eye")
+                Spacer()
+                Button("Darker", systemImage: "minus") { nudge(-1) }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+                Text(offsetLabel)
+                    .font(.footnote.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: 36)
+                Button("Lighter", systemImage: "plus") { nudge(1) }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+            }
+
+            if tuned != background {
+                Button("Save tuned wallpaper") {
+                    Task { saveResult = await Wallpaper.saveToPhotos(background: background) }
+                }
+                Button("Reset to widget color", role: .destructive) {
+                    tuned = background
+                    WallpaperTuning.setWallpaperColor(nil, for: background)
+                    status = nil
+                }
+            }
+            if saveResult == .saved {
+                Label("Saved. Set it as your wallpaper from Photos.", systemImage: "checkmark.circle.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.green)
+            }
+        } header: {
+            Text("Make it seamless")
+        } footer: {
+            Text("iPhone draws wallpapers slightly differently from widgets, especially light colors. Take a screenshot of your Home Screen with an Ebb widget showing (press the side and volume-up buttons), then choose it here. Ebb measures the difference and adjusts the wallpaper to cancel it out.")
+        }
+    }
+
+    private var offsetLabel: String {
+        let steps = Int(((tuned.red + tuned.green + tuned.blue - background.red - background.green - background.blue) / 3 * 255).rounded())
+        return steps == 0 ? "0" : (steps > 0 ? "+\(steps)" : "\(steps)")
+    }
+
+    private func nudge(_ steps: Int) {
+        tuned = WallpaperMatcher.nudge(tuned, steps: steps)
+        WallpaperTuning.setWallpaperColor(tuned, for: background)
+        saveResult = nil
+    }
+
+    private func analyze(_ item: PhotosPickerItem) async {
+        status = .checking
+        defer { pickedItem = nil }
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data)?.cgImage
+        else {
+            status = .failed("Couldn't open that screenshot.")
+            return
+        }
+        switch WallpaperMatcher.measure(image, target: background) {
+        case .success(let measurement) where measurement.difference < 1:
+            status = .perfect
+        case .success(let measurement):
+            // The wallpaper in the screenshot was saved in the current tuned color.
+            tuned = WallpaperMatcher.corrected(saved: tuned, measurement: measurement)
+            WallpaperTuning.setWallpaperColor(tuned, for: background)
+            saveResult = nil
+            status = .corrected(measurement.difference)
+        case .failure(.noWidget):
+            status = .failed("Couldn't find an Ebb widget in that screenshot. Make sure one is showing and your widget color in Ebb hasn't changed since.")
+        case .failure(.noWallpaper):
+            status = .failed("Couldn't find Ebb's wallpaper around the widget. Set the wallpaper from Ebb first, then take the screenshot.")
+        }
     }
 }

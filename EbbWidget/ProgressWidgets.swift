@@ -223,6 +223,8 @@ struct YearConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Show Progress Bar", default: true)
     var showBar: Bool
+    @Parameter(title: "Alignment", default: .automatic)
+    var alignment: LauncherAlignment
 }
 
 struct YearEntry: TimelineEntry {
@@ -249,6 +251,8 @@ struct YearProvider: AppIntentTimelineProvider {
 struct YearWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: YearEntry
+
+    private var align: ListAlignment { entry.configuration.alignment.resolved }
 
     private var period: ProgressPeriod { entry.configuration.period }
     private var style: ProgressStyle { entry.configuration.style }
@@ -283,7 +287,7 @@ struct YearWidgetView: View {
             Gauge(value: value) { Text(title) } currentValueLabel: { Text("\(Int(value * 100))") }
                 .gaugeStyle(.accessoryCircularCapacity)
         } else {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: align.horizontal, spacing: 4) {
                 Text("\(title) · \(percent(value))").font(.headline)
                 Gauge(value: value) { EmptyView() }.gaugeStyle(.accessoryLinearCapacity)
                 Text(period.remainingText(at: entry.date)).font(.caption)
@@ -292,7 +296,7 @@ struct YearWidgetView: View {
     }
 
     private var percentView: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: align.horizontal, spacing: 6) {
             Caption(text: title)
             Spacer(minLength: 0)
             Text(percent(value, digits: family == .systemLarge ? 1 : 0))
@@ -307,11 +311,11 @@ struct YearWidgetView: View {
                 Caption(text: period.remainingText(at: entry.date))
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: align.frame)
     }
 
     private var barView: some View {
-        VStack(alignment: .leading, spacing: family == .systemSmall ? 8 : 12) {
+        VStack(alignment: align.horizontal, spacing: family == .systemSmall ? 8 : 12) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title).font(.headline.weight(.regular))
                 Spacer()
@@ -335,7 +339,7 @@ struct YearWidgetView: View {
         case (.day, .systemMedium): 12
         case (.day, _): 6
         }
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: align.horizontal, spacing: 8) {
             if details {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(.caption.weight(.medium))
@@ -359,11 +363,11 @@ struct YearWidgetView: View {
                     .minimumScaleFactor(0.5)
             }
             if family == .systemMedium && details {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: align.horizontal, spacing: 4) {
                     Text(title).font(.headline.weight(.regular))
                     Caption(text: period.remainingText(at: entry.date))
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: align.frame)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -371,7 +375,7 @@ struct YearWidgetView: View {
 
     private var countdownView: some View {
         let left = period.remaining(at: entry.date)
-        return VStack(alignment: .leading, spacing: 2) {
+        return VStack(alignment: align.horizontal, spacing: 2) {
             Caption(text: title)
             Spacer(minLength: 0)
             Text(left.number)
@@ -383,7 +387,7 @@ struct YearWidgetView: View {
                 ThinBar(value: value, height: family == .systemLarge ? 8 : 5).padding(.top, 8)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: align.frame)
     }
 }
 
@@ -449,6 +453,8 @@ struct LifeConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Show Progress Bar", default: true)
     var showBar: Bool
+    @Parameter(title: "Alignment", default: .automatic)
+    var alignment: LauncherAlignment
 }
 
 struct LifeEntry: TimelineEntry {
@@ -474,6 +480,8 @@ struct LifeWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: LifeEntry
 
+    var align: ListAlignment { entry.configuration.alignment.resolved }
+
     var body: some View {
         Group {
             if let life = LifeProgress.load() {
@@ -491,11 +499,11 @@ struct LifeWidgetView: View {
                     content(life)
                 }
             } else {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: align.horizontal, spacing: 4) {
                     Text("Life").font(.headline)
                     Text("Add your age in Ebb › Widgets.").font(.caption).opacity(0.7)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: align.frame)
             }
         }
         .padding(family.isAccessory ? 0 : 16)
@@ -516,7 +524,7 @@ struct LifeWidgetView: View {
             Gauge(value: value) { Text("life") } currentValueLabel: { Text("\(Int(value * 100))") }
                 .gaugeStyle(.accessoryCircularCapacity)
         } else if family == .accessoryRectangular {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: align.horizontal, spacing: 4) {
                 Text("Life · \(percent(value, digits: 1))").font(.headline)
                 Gauge(value: value) { EmptyView() }.gaugeStyle(.accessoryLinearCapacity)
                 Text(life.isInExtraTime(at: entry.date)
@@ -533,7 +541,7 @@ struct LifeWidgetView: View {
                               title: span.isExtraTime ? "extra time" : (showsRemaining ? "life remaining" : "life lived"),
                               value: span.isExtraTime ? 1 : value)
             case .percent:
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: align.horizontal, spacing: 6) {
                     Caption(text: label)
                     Spacer(minLength: 0)
                     Text(percent(value, digits: 1))
@@ -546,9 +554,9 @@ struct LifeWidgetView: View {
                     }
                     Caption(text: life.isInExtraTime(at: entry.date) ? "in extra time" : "\(weeks) weeks to go")
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: align.frame)
             case .bar:
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: align.horizontal, spacing: 10) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(label.capitalized).font(.headline.weight(.regular))
                         Spacer()
@@ -561,7 +569,7 @@ struct LifeWidgetView: View {
             case .years:
                 let total = Int(life.expectancyYears.rounded())
                 let current = min(LifeProgress.age(birthDate: life.birthDate, now: entry.date) + 1, total)
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: align.horizontal, spacing: 8) {
                     HStack(alignment: .firstTextBaseline) {
                         Text("one dot per year").font(.caption.weight(.medium))
                         Spacer()
@@ -581,17 +589,17 @@ struct LifeWidgetView: View {
                             .minimumScaleFactor(0.5)
                     }
                     if family == .systemMedium {
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: align.horizontal, spacing: 4) {
                             Text(label.capitalized).font(.headline.weight(.regular))
                             Caption(text: "\(weeks) weeks to go")
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: align.frame)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .countdown:
                 let span = life.breakdown(remaining: true, at: entry.date)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: align.horizontal, spacing: 2) {
                     Caption(text: span.isExtraTime ? "extra time" : "make them count")
                     Spacer(minLength: 0)
                     Text(span.isExtraTime ? "+\(span.weeks.formatted())" : weeks)
@@ -604,7 +612,7 @@ struct LifeWidgetView: View {
                         ThinBar(value: lived, height: family == .systemLarge ? 8 : 5).padding(.top, 8)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: align.frame)
             }
         }
     }
@@ -621,12 +629,12 @@ private extension LifeWidgetView {
             (sign + span.days.formatted(), span.days == 1 ? "day" : "days"),
         ]
         if family == .systemMedium {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: align.horizontal, spacing: 10) {
                 Caption(text: title)
                 Spacer(minLength: 0)
                 HStack(alignment: .firstTextBaseline) {
                     ForEach(rows, id: \.1) { number, unit in
-                        VStack(alignment: .leading, spacing: 0) {
+                        VStack(alignment: align.horizontal, spacing: 0) {
                             Text(number)
                                 .font(.system(size: 30, weight: .thin))
                                 .monospacedDigit()
@@ -634,7 +642,7 @@ private extension LifeWidgetView {
                                 .lineLimit(1)
                             Text(unit).font(.caption).opacity(0.7)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: align.frame)
                     }
                 }
                 if entry.configuration.showBar {
@@ -643,7 +651,7 @@ private extension LifeWidgetView {
             }
         } else {
             let size: CGFloat = family == .systemLarge ? 44 : 22
-            VStack(alignment: .leading, spacing: family == .systemLarge ? 10 : 2) {
+            VStack(alignment: align.horizontal, spacing: family == .systemLarge ? 10 : 2) {
                 Caption(text: title)
                 Spacer(minLength: 0)
                 ForEach(rows, id: \.1) { number, unit in
@@ -663,7 +671,7 @@ private extension LifeWidgetView {
                         .padding(.top, family == .systemLarge ? 8 : 4)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: align.frame)
         }
     }
 }
@@ -713,6 +721,8 @@ struct SavedConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Unit", default: .hours)
     var unit: SavedUnit
+    @Parameter(title: "Alignment", default: .automatic)
+    var alignment: LauncherAlignment
 }
 
 struct SavedEntry: TimelineEntry {
@@ -738,6 +748,8 @@ struct SavedProvider: AppIntentTimelineProvider {
 struct TimeSavedWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: SavedEntry
+
+    private var align: ListAlignment { entry.configuration.alignment.resolved }
 
     var body: some View {
         let saved = TimeSaved.load()
@@ -788,11 +800,11 @@ struct TimeSavedWidgetView: View {
                 Text(shortUnit).font(.caption2)
             }
         } else {
-            VStack(alignment: .leading) {
+            VStack(alignment: align.horizontal) {
                 Text("\(total.value) \(total.unit) saved").font(.headline)
                 Text("with Ebb \(since(saved))").font(.caption)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: align.frame)
         }
     }
 
@@ -806,7 +818,7 @@ struct TimeSavedWidgetView: View {
 
     private func number(_ saved: TimeSaved) -> some View {
         let total = amount(saved.totalMinutes)
-        return VStack(alignment: .leading, spacing: 4) {
+        return VStack(alignment: align.horizontal, spacing: 4) {
             Caption(text: "time given back")
             Spacer(minLength: 0)
             Text(total.value)
@@ -817,7 +829,7 @@ struct TimeSavedWidgetView: View {
             Text("\(total.unit) saved").font(.subheadline.weight(.light))
             Caption(text: since(saved))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: align.frame)
     }
 
     private func breakdown(_ saved: TimeSaved) -> some View {
@@ -827,7 +839,7 @@ struct TimeSavedWidgetView: View {
         let focus = amount(saved.focusMinutes)
         let letGoShare = saved.totalMinutes == 0 ? 0 : Double(letGoMinutes) / Double(saved.totalMinutes)
 
-        return VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 10) {
+        return VStack(alignment: align.horizontal, spacing: family == .systemSmall ? 6 : 10) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(total.value)
                     .font(.system(size: family == .systemSmall ? 34 : 44, weight: .thin))
@@ -885,7 +897,7 @@ struct TimeSavedWidgetView: View {
         let count = family == .systemSmall ? 2 : (family == .systemMedium ? 3 : 6)
         let total = amount(saved.totalMinutes)
 
-        return VStack(alignment: .leading, spacing: family == .systemLarge ? 12 : 6) {
+        return VStack(alignment: align.horizontal, spacing: family == .systemLarge ? 12 : 6) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(total.value)
                     .font(.system(size: family == .systemLarge ? 44 : 28, weight: .thin))
@@ -903,7 +915,7 @@ struct TimeSavedWidgetView: View {
             }
             Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: align.frame)
     }
 }
 

@@ -5,6 +5,7 @@
 //  Created by Matthew Bunce on 2026-10-01.
 //
 
+import CoreGraphics
 import Foundation
 import Testing
 @testable import Ebb
@@ -276,5 +277,55 @@ struct TimeInWordsTests {
         #expect(TimeInWords.phrase(for: time(12, 0)) == "noon")
         #expect(TimeInWords.phrase(for: time(23, 59)) == "midnight")
         #expect(TimeInWords.phrase(for: time(14, 25)) == "twenty-five past two")
+    }
+}
+
+@MainActor
+struct WallpaperMatcherTests {
+    /// A fake screenshot: wallpaper everywhere, with a widget-colored block in the middle.
+    private func screenshot(wallpaper: (UInt8, UInt8, UInt8), widget: (UInt8, UInt8, UInt8)) -> CGImage {
+        let width = 300, height = 600
+        var data = [UInt8](repeating: 0, count: width * height * 4)
+        for y in 0..<height {
+            for x in 0..<width {
+                let inWidget = (40..<260).contains(x) && (100..<300).contains(y)
+                let color = inWidget ? widget : wallpaper
+                let i = (y * width + x) * 4
+                data[i] = color.0; data[i + 1] = color.1; data[i + 2] = color.2; data[i + 3] = 255
+            }
+        }
+        let context = CGContext(data: &data, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        return context.makeImage()!
+    }
+
+    @Test func correctsADarkerWallpaper() throws {
+        let paper = HexColor(hex: "#F3EFE6")!
+        // iOS drew the wallpaper about 4% darker than the widget.
+        let image = screenshot(wallpaper: (233, 229, 221), widget: (243, 239, 230))
+        let measurement = try WallpaperMatcher.measure(image, target: paper).get()
+        #expect(measurement.difference > 5)
+
+        let fixed = WallpaperMatcher.corrected(saved: paper, measurement: measurement)
+        #expect(fixed.red > paper.red - 0.001)
+        // Rendering the corrected wallpaper the same way lands back on the widget color.
+        let rendered = fixed.red * (233.0 / 243.0) * 255
+        #expect(abs(rendered - 243) < 2)
+    }
+
+    @Test func reportsAPerfectMatch() throws {
+        let paper = HexColor(hex: "#F3EFE6")!
+        let image = screenshot(wallpaper: (243, 239, 230), widget: (243, 239, 230))
+        let measurement = try WallpaperMatcher.measure(image, target: paper).get()
+        #expect(measurement.difference < 1)
+    }
+
+    @Test func failsWithoutAnEbbWidget() {
+        let paper = HexColor(hex: "#F3EFE6")!
+        let image = screenshot(wallpaper: (20, 20, 20), widget: (40, 90, 200))
+        #expect(throws: WallpaperMatcher.Failure.noWidget) {
+            try WallpaperMatcher.measure(image, target: paper).get()
+        }
     }
 }

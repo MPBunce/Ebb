@@ -118,6 +118,14 @@ nonisolated enum ListAlignment: String, CaseIterable, Identifiable {
         case .trailing: .trailing
         }
     }
+
+    var text: TextAlignment {
+        switch self {
+        case .leading: .leading
+        case .center: .center
+        case .trailing: .trailing
+        }
+    }
 }
 
 nonisolated enum ListTextSize: String, CaseIterable, Identifiable {

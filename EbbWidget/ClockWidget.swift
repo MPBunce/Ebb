@@ -32,6 +32,8 @@ struct ClockConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Show Progress Bar", default: true)
     var showProgress: Bool
+    @Parameter(title: "Alignment", default: .automatic)
+    var alignment: LauncherAlignment
 }
 
 struct ClockEntry: TimelineEntry {
@@ -39,6 +41,7 @@ struct ClockEntry: TimelineEntry {
     let style: ClockStyle
     var showDate = true
     var showProgress = true
+    var alignment: ListAlignment = .leading
 }
 
 struct ClockProvider: AppIntentTimelineProvider {
@@ -47,7 +50,7 @@ struct ClockProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: ClockConfigurationIntent, in context: Context) async -> ClockEntry {
-        ClockEntry(date: .now, style: configuration.style, showDate: configuration.showDate, showProgress: configuration.showProgress)
+        ClockEntry(date: .now, style: configuration.style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved)
     }
 
     func timeline(for configuration: ClockConfigurationIntent, in context: Context) async -> Timeline<ClockEntry> {
@@ -55,7 +58,7 @@ struct ClockProvider: AppIntentTimelineProvider {
         let now = Date.now
         if style == .digital {
             // Digital text ticks by itself; entries keep the day bar moving.
-            let entries = (0...96).map { ClockEntry(date: now.addingTimeInterval(Double($0) * 900), style: style, showDate: configuration.showDate, showProgress: configuration.showProgress) }
+            let entries = (0...96).map { ClockEntry(date: now.addingTimeInterval(Double($0) * 900), style: style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved) }
             return Timeline(entries: entries, policy: .atEnd)
         }
         // Drawn styles need an entry for every minute.
@@ -63,7 +66,7 @@ struct ClockProvider: AppIntentTimelineProvider {
         let startOfMinute = calendar.date(bySetting: .second, value: 0, of: now).map {
             $0 > now ? $0.addingTimeInterval(-60) : $0
         } ?? now
-        let entries = (0..<120).map { ClockEntry(date: startOfMinute.addingTimeInterval(Double($0) * 60), style: style, showDate: configuration.showDate, showProgress: configuration.showProgress) }
+        let entries = (0..<120).map { ClockEntry(date: startOfMinute.addingTimeInterval(Double($0) * 60), style: style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved) }
         return Timeline(entries: entries, policy: .atEnd)
     }
 }
@@ -71,6 +74,8 @@ struct ClockProvider: AppIntentTimelineProvider {
 struct ClockWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: ClockEntry
+
+    private var align: ListAlignment { entry.alignment }
 
     var body: some View {
         Group {
@@ -87,7 +92,7 @@ struct ClockWidgetView: View {
                         HStack(spacing: 20) {
                             AnalogFace(date: entry.date)
                                 .aspectRatio(1, contentMode: .fit)
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: align.horizontal, spacing: 8) {
                                 Spacer(minLength: 0)
                                 if entry.showDate {
                                     Text(dateLine).font(.subheadline).opacity(0.7)
@@ -133,7 +138,7 @@ struct ClockWidgetView: View {
     }
 
     private var digital: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: align.horizontal, spacing: 2) {
             Spacer()
             Text(entry.date, style: .time)
                 .font(.system(size: 40 * scale, weight: .thin))
@@ -148,15 +153,15 @@ struct ClockWidgetView: View {
                 dayBar.padding(.top, family == .systemLarge ? 16 : 8)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: align.frame)
     }
 
     private var stacked: some View {
         let hour = entry.date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)))
         let minute = entry.date.formatted(.dateTime.minute(.twoDigits))
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: align.horizontal, spacing: 8) {
         HStack(alignment: .bottom) {
-            VStack(alignment: .leading, spacing: -10) {
+            VStack(alignment: align.horizontal, spacing: -10) {
                 Text(hour)
                 Text(minute).opacity(0.55)
             }
@@ -169,7 +174,7 @@ struct ClockWidgetView: View {
                     .opacity(0.6)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: align.frame)
             if entry.showProgress {
                 dayBar
             }
@@ -177,7 +182,7 @@ struct ClockWidgetView: View {
     }
 
     private var words: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: align.horizontal, spacing: 6) {
             Spacer(minLength: 0)
             Text("it’s")
                 .font(.caption)
@@ -186,6 +191,7 @@ struct ClockWidgetView: View {
                 .font(.system(size: 24 * scale, weight: .light, design: .serif))
                 .minimumScaleFactor(0.6)
                 .lineLimit(3)
+                .multilineTextAlignment(align.text)
             Spacer(minLength: 0)
             if entry.showDate {
                 Text(dateLine).font(.caption).opacity(0.6)
@@ -194,7 +200,7 @@ struct ClockWidgetView: View {
                 dayBar
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: align.frame)
     }
 
     /// How much of today has passed, as a bar on its own.
@@ -229,7 +235,7 @@ struct ClockWidgetView: View {
     }
 
     private var accessory: some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: align.horizontal) {
             if entry.style == .words {
                 Text(TimeInWords.phrase(for: entry.date))
                     .font(.headline)
@@ -241,7 +247,7 @@ struct ClockWidgetView: View {
             Text(entry.date.formatted(.dateTime.weekday(.wide).day()))
                 .font(.caption)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: align.frame)
     }
 
     private var locked: some View {
