@@ -349,11 +349,11 @@ private struct WidgetsPage: View {
                 StepRow(number: 1, title: "Clear a page",
                         detail: "Long-press the Home Screen, tap the page dots at the bottom, and keep only one page checked. Your apps stay safe in the App Library.")
                 StepRow(number: 2, title: "Add the Apps widget",
-                        detail: "Tap Edit › Add Widget, search for Ebb, and add the large Apps widget. It shows your Home apps.")
+                        detail: "Tap Edit › Add Widget, search for Ebb, and add the medium or large Apps widget. It shows your first app widget.")
                 StepRow(number: 3, title: "Pick apps per widget",
                         detail: "Long-press a widget › Edit Widget to choose its apps, alignment, text size, and clock. Stack two medium widgets for more room.")
                 StepRow(number: 4, title: "Add a few extras",
-                        detail: "Clock, Year, Life, and Time Saved are small widgets for the top of the screen.")
+                        detail: "Clock, Year, Life, and Time Saved come in every size, and a Spacer leaves calm, empty room between them.")
                 StepRow(number: 5, title: "Empty the Dock",
                         detail: "Drag apps out of the Dock, or keep only Ebb there.")
             }

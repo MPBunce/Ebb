@@ -10,6 +10,7 @@ import WidgetKit
 struct EbbWidgetBundle: WidgetBundle {
     var body: some Widget {
         LauncherWidget()
+        SpacerWidget()
         ClockWidget()
         YearWidget()
         LifeWidget()

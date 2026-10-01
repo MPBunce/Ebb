@@ -29,12 +29,16 @@ struct ClockConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Show Date", default: true)
     var showDate: Bool
+
+    @Parameter(title: "Show Progress Bar", default: true)
+    var showProgress: Bool
 }
 
 struct ClockEntry: TimelineEntry {
     let date: Date
     let style: ClockStyle
     var showDate = true
+    var showProgress = true
 }
 
 struct ClockProvider: AppIntentTimelineProvider {
@@ -43,15 +47,15 @@ struct ClockProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: ClockConfigurationIntent, in context: Context) async -> ClockEntry {
-        ClockEntry(date: .now, style: configuration.style, showDate: configuration.showDate)
+        ClockEntry(date: .now, style: configuration.style, showDate: configuration.showDate, showProgress: configuration.showProgress)
     }
 
     func timeline(for configuration: ClockConfigurationIntent, in context: Context) async -> Timeline<ClockEntry> {
         let style = configuration.style
         let now = Date.now
         if style == .digital {
-            // Digital text ticks by itself; entries only roll the date over.
-            let entries = (0...24).map { ClockEntry(date: now.addingTimeInterval(Double($0) * 3600), style: style, showDate: configuration.showDate) }
+            // Digital text ticks by itself; entries keep the day bar moving.
+            let entries = (0...96).map { ClockEntry(date: now.addingTimeInterval(Double($0) * 900), style: style, showDate: configuration.showDate, showProgress: configuration.showProgress) }
             return Timeline(entries: entries, policy: .atEnd)
         }
         // Drawn styles need an entry for every minute.
@@ -59,7 +63,7 @@ struct ClockProvider: AppIntentTimelineProvider {
         let startOfMinute = calendar.date(bySetting: .second, value: 0, of: now).map {
             $0 > now ? $0.addingTimeInterval(-60) : $0
         } ?? now
-        let entries = (0..<120).map { ClockEntry(date: startOfMinute.addingTimeInterval(Double($0) * 60), style: style, showDate: configuration.showDate) }
+        let entries = (0..<120).map { ClockEntry(date: startOfMinute.addingTimeInterval(Double($0) * 60), style: style, showDate: configuration.showDate, showProgress: configuration.showProgress) }
         return Timeline(entries: entries, policy: .atEnd)
     }
 }
@@ -78,10 +82,30 @@ struct ClockWidgetView: View {
                 switch entry.style {
                 case .digital: digital
                 case .analog:
-                    VStack(spacing: 8) {
-                        AnalogFace(date: entry.date)
-                        if entry.showDate && family != .systemSmall {
-                            Text(dateLine).font(.caption).opacity(0.6)
+                    if family == .systemMedium {
+                        // Face on the left, date and day bar beside it.
+                        HStack(spacing: 20) {
+                            AnalogFace(date: entry.date)
+                                .aspectRatio(1, contentMode: .fit)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Spacer(minLength: 0)
+                                if entry.showDate {
+                                    Text(dateLine).font(.subheadline).opacity(0.7)
+                                }
+                                if entry.showProgress {
+                                    dayBar
+                                }
+                            }
+                        }
+                    } else {
+                        VStack(spacing: 8) {
+                            AnalogFace(date: entry.date)
+                            if entry.showDate && family != .systemSmall {
+                                Text(dateLine).font(.caption).opacity(0.6)
+                            }
+                            if entry.showProgress {
+                                dayBar
+                            }
                         }
                     }
                 case .stacked: stacked
@@ -120,21 +144,8 @@ struct ClockWidgetView: View {
                     .font(family == .systemLarge ? .title3 : .caption)
                     .opacity(0.6)
             }
-            if family == .systemLarge {
-                let day = TimeProgress.fraction(of: .day, at: entry.date)
-                VStack(alignment: .leading, spacing: 6) {
-                    GeometryReader { proxy in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.primary.opacity(0.18))
-                            Capsule().fill(.primary).frame(width: proxy.size.width * day)
-                        }
-                    }
-                    .frame(height: 4)
-                    Text("\(Int(day * 100))% of today")
-                        .font(.caption)
-                        .opacity(0.6)
-                }
-                .padding(.top, 16)
+            if entry.showProgress {
+                dayBar.padding(.top, family == .systemLarge ? 16 : 8)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -143,7 +154,8 @@ struct ClockWidgetView: View {
     private var stacked: some View {
         let hour = entry.date.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)))
         let minute = entry.date.formatted(.dateTime.minute(.twoDigits))
-        return HStack(alignment: .bottom) {
+        return VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: -10) {
                 Text(hour)
                 Text(minute).opacity(0.55)
@@ -158,6 +170,10 @@ struct ClockWidgetView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            if entry.showProgress {
+                dayBar
+            }
+        }
     }
 
     private var words: some View {
@@ -174,8 +190,32 @@ struct ClockWidgetView: View {
             if entry.showDate {
                 Text(dateLine).font(.caption).opacity(0.6)
             }
+            if entry.showProgress {
+                dayBar
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// How much of today has passed. Small widgets show just the bar.
+    private var dayBar: some View {
+        let day = TimeProgress.fraction(of: .day, at: entry.date)
+        return VStack(alignment: .leading, spacing: 4) {
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.primary.opacity(0.18))
+                    Capsule().fill(.primary).frame(width: max(proxy.size.width * day, 4))
+                }
+            }
+            .frame(height: family == .systemLarge ? 6 : 4)
+            if family != .systemSmall {
+                Text("\(Int(day * 100))% of today")
+                    .font(.caption)
+                    .opacity(0.6)
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel("\(Int(day * 100)) percent of today has passed")
     }
 
     private var dayRing: some View {

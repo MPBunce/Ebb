@@ -220,6 +220,9 @@ struct YearConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Show Details", default: true)
     var showDetails: Bool
+
+    @Parameter(title: "Show Progress Bar", default: true)
+    var showBar: Bool
 }
 
 struct YearEntry: TimelineEntry {
@@ -297,10 +300,10 @@ struct YearWidgetView: View {
                 .monospacedDigit()
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
+            if entry.configuration.showBar {
+                ThinBar(value: value, height: family == .systemLarge ? 8 : 5).padding(.vertical, 6)
+            }
             if details {
-                if family == .systemLarge {
-                    ThinBar(value: value, height: 8).padding(.vertical, 6)
-                }
                 Caption(text: period.remainingText(at: entry.date))
             }
         }
@@ -341,6 +344,9 @@ struct YearWidgetView: View {
                 }
             }
             DotGrid(total: units.total, filled: units.current, columns: columns)
+            if entry.configuration.showBar && family != .systemSmall {
+                ThinBar(value: value, height: family == .systemLarge ? 8 : 5)
+            }
         }
     }
 
@@ -373,8 +379,8 @@ struct YearWidgetView: View {
                 .monospacedDigit()
                 .minimumScaleFactor(0.5)
             Text(left.unit).font(.subheadline.weight(.light))
-            if details && family != .systemSmall {
-                ThinBar(value: value).padding(.top, 8)
+            if entry.configuration.showBar {
+                ThinBar(value: value, height: family == .systemLarge ? 8 : 5).padding(.top, 8)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -438,6 +444,9 @@ struct LifeConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Show", default: .lived)
     var framing: LifeFraming
+
+    @Parameter(title: "Show Progress Bar", default: true)
+    var showBar: Bool
 }
 
 struct LifeEntry: TimelineEntry {
@@ -511,8 +520,8 @@ struct LifeWidgetView: View {
                         .monospacedDigit()
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
-                    if family == .systemLarge {
-                        ThinBar(value: value, height: 8).padding(.vertical, 6)
+                    if entry.configuration.showBar {
+                        ThinBar(value: value, height: family == .systemLarge ? 8 : 5).padding(.vertical, 6)
                     }
                     Caption(text: "\(weeks) weeks to go")
                 }
@@ -538,6 +547,9 @@ struct LifeWidgetView: View {
                         Text(percent(lived)).font(.caption).monospacedDigit().opacity(0.7)
                     }
                     DotGrid(total: total, filled: current, columns: family == .systemMedium ? 20 : 10)
+                    if entry.configuration.showBar && family != .systemSmall {
+                        ThinBar(value: lived, height: family == .systemLarge ? 8 : 5)
+                    }
                 }
             case .ring:
                 HStack(spacing: 16) {
@@ -566,6 +578,9 @@ struct LifeWidgetView: View {
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
                     Text("weeks left").font(.subheadline.weight(.light))
+                    if entry.configuration.showBar {
+                        ThinBar(value: lived, height: family == .systemLarge ? 8 : 5).padding(.top, 8)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -772,14 +787,21 @@ struct TimeSavedWidgetView: View {
 
     private func equivalents(_ saved: TimeSaved) -> some View {
         let minutes = Double(saved.totalMinutes)
-        let items: [(icon: String, text: String)] = [
-            ("book.closed", "\(Int(minutes / 360).formatted()) books read"),
-            ("figure.walk", "\(Int(minutes / 30).formatted()) half-hour walks"),
-            ("film", "\(Int(minutes / 120).formatted()) films"),
-            ("bed.double", "\(Int(minutes / 480).formatted()) nights of sleep"),
-            ("cup.and.saucer", "\(Int(minutes / 20).formatted()) coffees with a friend"),
-            ("music.note", "\(Int(minutes / 4).formatted()) songs"),
+        // (icon, minutes each, singular, plural). Anything that rounds down to zero is skipped.
+        let ideas: [(String, Double, String, String)] = [
+            ("music.note", 4, "song", "songs"),
+            ("cup.and.saucer", 20, "coffee with a friend", "coffees with a friend"),
+            ("figure.walk", 30, "half-hour walk", "half-hour walks"),
+            ("film", 120, "film", "films"),
+            ("book.closed", 360, "book read", "books read"),
+            ("bed.double", 480, "night of sleep", "nights of sleep"),
         ]
+        let items: [(icon: String, text: String)] = ideas.compactMap { icon, each, one, many in
+            let count = Int(minutes / each)
+            guard count >= 1 else { return nil }
+            return (icon, "\(count.formatted()) \(count == 1 ? one : many)")
+        }
+        .reversed()
         let count = family == .systemSmall ? 2 : (family == .systemMedium ? 3 : 6)
         let total = amount(saved.totalMinutes)
 
@@ -789,6 +811,9 @@ struct TimeSavedWidgetView: View {
                     .font(.system(size: family == .systemLarge ? 44 : 28, weight: .thin))
                     .monospacedDigit()
                 Text("\(total.unit) is enough for").font(.caption).opacity(0.7)
+            }
+            if items.isEmpty {
+                Caption(text: "Let a few apps go and this fills up.")
             }
             ForEach(items.prefix(count), id: \.text) { item in
                 Label(item.text, systemImage: item.icon)

@@ -270,7 +270,7 @@ struct LauncherWidget: Widget {
         }
         .configurationDisplayName("Apps")
         .description("Six apps as plain text. Add one for each app widget you set up in Ebb, then long-press › Edit Widget to choose which.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .supportedFamilies([.systemMedium, .systemLarge])
         .contentMarginsDisabled()
     }
 }
