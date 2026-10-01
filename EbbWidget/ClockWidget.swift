@@ -197,23 +197,16 @@ struct ClockWidgetView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// How much of today has passed. Small widgets show just the bar.
+    /// How much of today has passed, as a bar on its own.
     private var dayBar: some View {
         let day = TimeProgress.fraction(of: .day, at: entry.date)
-        return VStack(alignment: .leading, spacing: 4) {
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(.primary.opacity(0.18))
-                    Capsule().fill(.primary).frame(width: max(proxy.size.width * day, 4))
-                }
-            }
-            .frame(height: family == .systemLarge ? 6 : 4)
-            if family != .systemSmall {
-                Text("\(Int(day * 100))% of today")
-                    .font(.caption)
-                    .opacity(0.6)
+        return GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.primary.opacity(0.18))
+                Capsule().fill(.primary).frame(width: max(proxy.size.width * day, 4))
             }
         }
+        .frame(height: family == .systemLarge ? 6 : 4)
         .accessibilityElement()
         .accessibilityLabel("\(Int(day * 100)) percent of today has passed")
     }
@@ -226,16 +219,11 @@ struct ClockWidgetView: View {
                 .trim(from: 0, to: progress)
                 .stroke(.primary, style: StrokeStyle(lineWidth: 4 * scale, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-            VStack(spacing: 2) {
-                Text(entry.date, style: .time)
-                    .font(.system(size: 22 * scale, weight: .light))
-                    .minimumScaleFactor(0.6)
-                    .lineLimit(1)
-                Text("\(Int(progress * 100))% of today")
-                    .font(.caption2)
-                    .opacity(0.6)
-            }
-            .padding(12)
+            Text(entry.date, style: .time)
+                .font(.system(size: 22 * scale, weight: .light))
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+                .padding(12)
         }
         .padding(4)
     }
