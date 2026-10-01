@@ -49,15 +49,21 @@ struct CatalogPicker: View {
         return true
     }
 
-    private var grouped: [(CatalogApp.Category, [CatalogApp])] {
+    @State private var installed: [CatalogApp] = []
+
+    private var grouped: [(String, [CatalogApp])] {
         let apps = query.isEmpty
             ? AppCatalog.apps
             : AppCatalog.apps.filter { $0.name.localizedStandardContains(query) }
-        return CatalogApp.Category.allCases.compactMap { category in
-            let matches = apps.filter { $0.category == category }
-            return matches.isEmpty ? nil : (category, matches)
+        // Third-party apps found on this iPhone come first.
+        let found = apps.filter { app in app.category != .essentials && installed.contains(app) }
+        let rest = CatalogApp.Category.allCases.compactMap { category -> (String, [CatalogApp])? in
+            let matches = apps.filter { $0.category == category && !found.contains($0) }
+            return matches.isEmpty ? nil : (category.rawValue, matches)
         }
+        return (found.isEmpty ? [] : [("On this iPhone", found)]) + rest
     }
+
 
     var body: some View {
         List {
@@ -71,20 +77,22 @@ struct CatalogPicker: View {
             } footer: {
                 Text("iPhone doesn't let Ebb see which apps you have, so pick from this list. For anything else, add it with a Shortcut (works for every app) or the app's link.")
             }
-            ForEach(grouped, id: \.0) { category, apps in
-                Section(category.rawValue) {
+            ForEach(grouped, id: \.0) { title, apps in
+                Section(title) {
                     ForEach(apps) { app in
                         Button {
                             toggle(app)
                         } label: {
-                            HStack {
+                            HStack(spacing: 14) {
+                                AppMonogram(name: app.name)
                                 Text(app.name)
                                 Spacer()
-                                if isChecked(app) {
-                                    Image(systemName: "checkmark")
-                                        .accessibilityLabel("Added")
-                                }
+                                Image(systemName: isChecked(app) ? "checkmark.circle.fill" : "plus.circle")
+                                    .font(.title3)
+                                    .foregroundStyle(isChecked(app) ? Color.accentColor : Color.secondary)
+                                    .accessibilityLabel(isChecked(app) ? "Added" : "Add")
                             }
+                            .padding(.vertical, 2)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -93,6 +101,7 @@ struct CatalogPicker: View {
             }
         }
         .searchable(text: $query, prompt: "Search apps")
+        .onAppear { installed = InstalledApps.detect() }
         .alert("This widget is full", isPresented: $showFull) {
             Button("OK", role: .cancel) {}
         } message: {

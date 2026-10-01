@@ -2,6 +2,52 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>sgnl</string>
+		<string>tg</string>
+		<string>fb-messenger</string>
+		<string>discord</string>
+		<string>slack</string>
+		<string>msteams</string>
+		<string>zoomus</string>
+		<string>googlegmail</string>
+		<string>ms-outlook</string>
+		<string>googlecalendar</string>
+		<string>googledrive</string>
+		<string>notion</string>
+		<string>googlechrome</string>
+		<string>google</string>
+		<string>googledocs</string>
+		<string>googlesheets</string>
+		<string>brave</string>
+		<string>firefox</string>
+		<string>duolingo</string>
+		<string>strava</string>
+		<string>venmo</string>
+		<string>spotify</string>
+		<string>youtubemusic</string>
+		<string>youtube</string>
+		<string>nflx</string>
+		<string>audible</string>
+		<string>kindle</string>
+		<string>googlephotos</string>
+		<string>comgooglemaps</string>
+		<string>waze</string>
+		<string>uber</string>
+		<string>lyft</string>
+		<string>airbnb</string>
+		<string>instagram</string>
+		<string>snssdk1233</string>
+		<string>twitter</string>
+		<string>barcelona</string>
+		<string>fb</string>
+		<string>reddit</string>
+		<string>snapchat</string>
+		<string>linkedin</string>
+		<string>pinterest</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

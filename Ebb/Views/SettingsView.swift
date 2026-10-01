@@ -213,6 +213,7 @@ private struct SummaryCard: View {
 struct ManageAppsView: View {
     @Environment(LauncherStore.self) private var store
     @State private var isAdding = false
+    @State private var isScanning = false
 
     private var apps: [LaunchTarget] {
         store.targets.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
@@ -220,37 +221,143 @@ struct ManageAppsView: View {
 
     var body: some View {
         List {
-            ExplainerHeader(icon: "link", text: "iPhone doesn't let apps see what's installed, so each app here has a link Ebb uses to open it. Most use a URL scheme. For anything else, make a Shortcut with the “Open App” action and link to it.")
+            Section {
+                Button {
+                    isScanning = true
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "sparkle.magnifyingglass")
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(RoundedRectangle(cornerRadius: 9).fill(Color.blue.gradient))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Find apps on this iPhone")
+                                .foregroundStyle(.primary)
+                            Text("Add the apps you have in one tap")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 6)
+                }
+                Button {
+                    isAdding = true
+                } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "plus")
+                            .font(.title3)
+                            .foregroundStyle(.white)
+                            .frame(width: 34, height: 34)
+                            .background(RoundedRectangle(cornerRadius: 9).fill(Color.gray.gradient))
+                        Text("Browse all apps")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+
             Section {
                 ForEach(apps) { target in
                     NavigationLink {
                         TargetEditor(target: target)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(target.name)
-                                if store.widgetAppIDs.contains(target.id) { Image(systemName: "square.grid.2x2").font(.caption) }
-                                if target.isMindful { Image(systemName: "hourglass").font(.caption) }
-                                if target.isHidden { Image(systemName: "eye.slash").font(.caption) }
-                            }
-                            Text(target.methodDescription)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        AppRow(target: target)
                     }
                 }
                 .onDelete { offsets in
                     offsets.map { apps[$0] }.forEach(store.remove)
                 }
+            } header: {
+                Text("Your apps · \(apps.count)")
             } footer: {
-                Text("Grid: on an app widget. Hourglass: mindful pause. Eye: hidden from lists.")
+                Text("Tap an app to rename it, change how it opens, or add a mindful pause. Swipe to remove.")
             }
         }
         .navigationTitle("Apps")
-        .toolbar {
-            Button("Add", systemImage: "plus") { isAdding = true }
-        }
         .sheet(isPresented: $isAdding) { AddAppsView() }
+        .sheet(isPresented: $isScanning) {
+            NavigationStack { InstalledAppsView() }
+        }
+    }
+}
+
+/// Apps Ebb found on this iPhone that aren't added yet, ready to add in one tap.
+struct InstalledAppsView: View {
+    @Environment(LauncherStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var found: [CatalogApp] = []
+    @State private var selected: Set<String> = []
+
+    var body: some View {
+        List {
+            if found.isEmpty {
+                ContentUnavailableView("You're all set", systemImage: "checkmark.circle",
+                                       description: Text("Every app Ebb can find on this iPhone is already added."))
+            } else {
+                Section {
+                    ForEach(found) { app in
+                        Button {
+                            if selected.contains(app.id) { selected.remove(app.id) } else { selected.insert(app.id) }
+                        } label: {
+                            HStack(spacing: 14) {
+                                AppMonogram(name: app.name)
+                                Text(app.name).foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: selected.contains(app.id) ? "checkmark.circle.fill" : "circle")
+                                    .font(.title3)
+                                    .foregroundStyle(selected.contains(app.id) ? Color.accentColor : Color.secondary)
+                            }
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                        }
+                        .accessibilityAddTraits(selected.contains(app.id) ? .isSelected : [])
+                    }
+                } header: {
+                    Text("Found \(found.count) app\(found.count == 1 ? "" : "s")")
+                } footer: {
+                    Text("iPhone only lets Ebb check for apps it knows about, so a few of yours may be missing. Add those from Browse all apps with a Shortcut.")
+                }
+            }
+        }
+        .navigationTitle("On this iPhone")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Add \(selected.count)") {
+                    for app in found where selected.contains(app.id) {
+                        let target = app.makeTarget()
+                        store.add(target)
+                        store.addToFirstOpenList(target.id)
+                    }
+                    dismiss()
+                }
+                .disabled(selected.isEmpty)
+            }
+            if !found.isEmpty {
+                ToolbarItem(placement: .bottomBar) {
+                    Button(selected.count == found.count ? "Deselect all" : "Select all") {
+                        selected = selected.count == found.count ? [] : Set(found.map(\.id))
+                    }
+                }
+            }
+        }
+        .onAppear {
+            found = InstalledApps.detect().filter { !store.contains(catalogApp: $0) }
+            // Third-party apps are pre-selected; built-in ones are opt-in.
+            selected = Set(found.filter { $0.category != .essentials }.map(\.id))
+        }
     }
 }
 

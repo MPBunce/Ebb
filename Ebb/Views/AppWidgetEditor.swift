@@ -32,14 +32,7 @@ struct AppWidgetEditor: View {
 
                 Section {
                     ForEach(apps) { app in
-                        HStack {
-                            Text(app.name)
-                            Spacer()
-                            Button("Test") { store.open(app, intention: nil) }
-                                .buttonStyle(.borderless)
-                                .font(.footnote)
-                                .accessibilityLabel("Open \(app.name)")
-                        }
+                        AppRow(target: app, detail: app.isMindful ? "Mindful pause" : "Opens directly")
                     }
                     .onMove { store.moveApps(in: listID, from: $0, to: $1) }
                     .onDelete { offsets in
@@ -52,7 +45,7 @@ struct AppWidgetEditor: View {
                 } header: {
                     Text("On this widget · \(apps.count) of \(AppWidgetList.capacity)")
                 } footer: {
-                    Text("Tap Edit to reorder. Swipe to remove. Tap Test to check an app opens.")
+                    Text("Tap Edit to reorder. Swipe to remove. Tap Open to check an app opens.")
                 }
 
                 Section {
@@ -67,13 +60,17 @@ struct AppWidgetEditor: View {
                         Button {
                             store.toggle(app.id, in: listID)
                         } label: {
-                            HStack {
+                            HStack(spacing: 14) {
+                                AppMonogram(name: app.name)
+                                    .opacity(list.isFull ? 0.5 : 1)
                                 Text(app.name)
                                     .foregroundStyle(list.isFull ? .secondary : .primary)
                                 Spacer()
-                                Image(systemName: "plus.circle")
-                                    .foregroundStyle(list.isFull ? .tertiary : .secondary)
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(list.isFull ? Color.secondary.opacity(0.4) : Color.accentColor)
                             }
+                            .padding(.vertical, 4)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.borderless)
