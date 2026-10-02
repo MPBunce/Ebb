@@ -22,7 +22,7 @@ struct BreatherRequest: Identifiable {
 
 /// Screens pushed on the dashboard, restorable across launches.
 enum DashboardRoute: String, Codable, Hashable {
-    case widgets, apps, colors, wallpaper
+    case widgets, apps, colors, wallpaper, help
 }
 
 @Observable

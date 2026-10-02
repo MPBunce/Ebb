@@ -521,12 +521,12 @@ struct LifeWidgetView: View {
         let style = entry.configuration.style
 
         if family == .accessoryCircular {
-            Gauge(value: value) { Text("life") } currentValueLabel: { Text("\(Int(value * 100))") }
+            Gauge(value: lived) { Text("life") } currentValueLabel: { Text("\(Int(value * 100))") }
                 .gaugeStyle(.accessoryCircularCapacity)
         } else if family == .accessoryRectangular {
             VStack(alignment: align.horizontal, spacing: 4) {
                 Text("Life · \(percent(value, digits: 1))").font(.headline)
-                Gauge(value: value) { EmptyView() }.gaugeStyle(.accessoryLinearCapacity)
+                Gauge(value: lived) { EmptyView() }.gaugeStyle(.accessoryLinearCapacity)
                 Text(life.isInExtraTime(at: entry.date)
                      ? "Extra time: +\(life.breakdown(remaining: true, at: entry.date).weeks.formatted()) weeks"
                      : "\(weeks) weeks left").font(.caption)
@@ -539,7 +539,7 @@ struct LifeWidgetView: View {
                 let span = life.breakdown(remaining: showsRemaining, at: entry.date)
                 breakdownView(span,
                               title: span.isExtraTime ? "extra time" : (showsRemaining ? "life remaining" : "life lived"),
-                              value: span.isExtraTime ? 1 : value)
+                              value: span.isExtraTime ? 1 : lived)
             case .percent:
                 VStack(alignment: align.horizontal, spacing: 6) {
                     Caption(text: label)
@@ -550,7 +550,7 @@ struct LifeWidgetView: View {
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
                     if entry.configuration.showBar {
-                        ThinBar(value: value, height: family == .systemLarge ? 8 : 5).padding(.vertical, 6)
+                        ThinBar(value: lived, height: family == .systemLarge ? 8 : 5).padding(.vertical, 6)
                     }
                     Caption(text: life.isInExtraTime(at: entry.date) ? "in extra time" : "\(weeks) weeks to go")
                 }
@@ -563,7 +563,7 @@ struct LifeWidgetView: View {
                         Text(percent(value, digits: 1)).font(.headline.weight(.light)).monospacedDigit()
                     }
                     Spacer(minLength: 0)
-                    ThinBar(value: value, height: family == .systemLarge ? 14 : 8)
+                    ThinBar(value: lived, height: family == .systemLarge ? 14 : 8)
                     Caption(text: "\(LifeProgress.age(birthDate: life.birthDate, now: entry.date)) of about \(Int(life.expectancyYears.rounded())) years")
                 }
             case .years:
@@ -582,7 +582,7 @@ struct LifeWidgetView: View {
                 }
             case .ring:
                 HStack(spacing: 16) {
-                    Ring(value: value, lineWidth: family == .systemLarge ? 10 : 6) {
+                    Ring(value: lived, lineWidth: family == .systemLarge ? 10 : 6) {
                         Text(percent(value))
                             .font(.system(size: family == .systemLarge ? 34 : 20, weight: .light))
                             .monospacedDigit()

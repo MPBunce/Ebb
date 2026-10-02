@@ -17,7 +17,6 @@ struct DashboardView: View {
 
     @AppStorage(AppGroup.Key.backgroundHex, store: AppGroup.defaults) private var backgroundHex: String?
     @AppStorage(AppGroup.Key.wallpaperSet, store: AppGroup.defaults) private var wallpaperSet = false
-    @AppStorage("showSetupWhenDone") private var showSetupWhenDone = false
 
     @State private var widgetsAdded = false
     @State private var path: [DashboardRoute] = []
@@ -25,41 +24,11 @@ struct DashboardView: View {
     @SceneStorage("dashboardPath") private var savedPath = ""
     @SceneStorage("dashboardSheet") private var savedSheet = ""
 
-    private var steps: [SetupStep] {
-        [
-            SetupStep(
-                id: .apps, title: "Choose your apps",
-                detail: store.widgetAppIDs.isEmpty
-                    ? "Pick the few apps you want on your Home Screen."
-                    : "\(store.widgetAppIDs.count) on your app widgets, \(store.targets.count) in total.",
-                isDone: !store.widgetAppIDs.isEmpty
-            ),
-            SetupStep(
-                id: .colors, title: "Pick your colors",
-                detail: "One color for Ebb, your widgets, and your wallpaper.",
-                isDone: backgroundHex != nil
-            ),
-            SetupStep(
-                id: .wallpaper, title: "Set a matching wallpaper",
-                detail: "So your widgets blend in and only app names show.",
-                isDone: wallpaperSet
-            ),
-            SetupStep(
-                id: .widgets, title: "Add the Apps widget",
-                detail: widgetsAdded ? "Ebb's widget is on your Home Screen." : "Put your apps on your Home Screen as plain text.",
-                isDone: widgetsAdded
-            ),
-            SetupStep(
-                id: .screenTime, title: "Turn on blocking",
-                detail: "Lets Ebb block apps during work time and focus.",
-                isDone: focus.isAuthorized, isOptional: true
-            ),
-        ]
+    private var checklist: SetupChecklist {
+        SetupChecklist(store: store, focus: focus, backgroundHex: backgroundHex,
+                       wallpaperSet: wallpaperSet, widgetsAdded: widgetsAdded)
     }
-
-    private var requiredDone: Int { steps.filter { !$0.isOptional && $0.isDone }.count }
-    private var requiredTotal: Int { steps.filter { !$0.isOptional }.count }
-    private var isSetUp: Bool { requiredDone == requiredTotal }
+    private var isSetUp: Bool { checklist.isSetUp }
 
     var body: some View {
         @Bindable var router = router
@@ -89,13 +58,13 @@ struct DashboardView: View {
                 focusSection
                 todaySection
 
-                if !isSetUp || showSetupWhenDone {
-                    setupSection
-                }
-
-                if isSetUp {
-                    Section {
-                        Toggle("Show setup checklist", isOn: $showSetupWhenDone)
+                Section {
+                    NavigationLink(value: DashboardRoute.help) {
+                        SettingsRow(icon: isSetUp ? "questionmark" : "checklist", tint: isSetUp ? .gray : .green,
+                                    title: "Help & Setup",
+                                    subtitle: isSetUp
+                                        ? "Guides and common questions"
+                                        : "Setup: \(checklist.requiredDone) of \(checklist.requiredTotal) done · guides and common questions")
                     }
                 }
             }
@@ -148,44 +117,6 @@ struct DashboardView: View {
 
     // MARK: Sections
 
-    private var setupSection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 6) {
-                ProgressView(value: Double(requiredDone), total: Double(requiredTotal))
-                    .tint(.green)
-                Text(isSetUp ? "All set" : "\(requiredDone) of \(requiredTotal) done")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.vertical, 4)
-
-            ForEach(Array(steps.enumerated()), id: \.element.id) { index, step in
-                switch step.id {
-                case .screenTime:
-                    Button { router.sheet = .focus } label: {
-                        SetupStepRow(number: index + 1, step: step, showsChevron: true)
-                    }
-                default:
-                    NavigationLink(value: route(for: step.id)) {
-                        SetupStepRow(number: index + 1, step: step)
-                    }
-                }
-            }
-        } header: {
-            Text("Set up your Home Screen")
-        } footer: {
-            Text("iPhone doesn't let apps replace the Home Screen, so Ebb builds yours from widgets on a matching wallpaper.")
-        }
-    }
-
-    private func route(for step: SetupStep.ID) -> DashboardRoute {
-        switch step {
-        case .apps, .widgets, .screenTime: .widgets
-        case .colors: .colors
-        case .wallpaper: .wallpaper
-        }
-    }
-
     @ViewBuilder
     private func destination(for route: DashboardRoute) -> some View {
         switch route {
@@ -193,6 +124,7 @@ struct DashboardView: View {
         case .apps: ManageAppsView()
         case .colors: AppearanceView()
         case .wallpaper: WallpaperStepView()
+        case .help: HelpView()
         }
     }
 
@@ -290,98 +222,6 @@ struct DashboardView: View {
     }
 
     private func refreshWidgets() async {
-        let configurations = (try? await WidgetCenter.shared.currentConfigurations()) ?? []
-        widgetsAdded = configurations.contains { $0.kind == "EbbLauncher.apps" }
+        widgetsAdded = await SetupChecklist.isAppsWidgetAdded()
     }
 }
-
-// MARK: - Setup steps
-
-struct SetupStep: Identifiable {
-    enum ID { case apps, colors, wallpaper, widgets, screenTime }
-
-    let id: ID
-    let title: String
-    let detail: String
-    let isDone: Bool
-    var isOptional = false
-}
-
-private struct SetupStepRow: View {
-    let number: Int
-    let step: SetupStep
-    var showsChevron = false
-
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                if step.isDone {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.green)
-                } else {
-                    Text("\(number)")
-                        .font(.callout.weight(.medium))
-                        .frame(width: 26, height: 26)
-                        .background(Circle().strokeBorder(.secondary.opacity(0.5)))
-                }
-            }
-            .frame(width: 30)
-            .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(step.title)
-                        .foregroundStyle(step.isDone ? .secondary : .primary)
-                    if step.isOptional {
-                        Text("Optional")
-                            .font(.caption2.weight(.medium))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(.quaternary))
-                    }
-                }
-                Text(step.detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityValue(step.isDone ? "Done" : "Not done")
-    }
-}
-
-// MARK: - Step screens
-
-private struct WallpaperStepView: View {
-    @AppStorage(AppGroup.Key.backgroundHex, store: AppGroup.defaults) private var backgroundHex = Appearance.defaultBackground
-    @AppStorage(AppGroup.Key.wallpaperSet, store: AppGroup.defaults) private var wallpaperSet = false
-
-    var body: some View {
-        Form {
-            ExplainerHeader(icon: "photo.on.rectangle", text: "iPhone doesn't let apps change your wallpaper, so Ebb saves one in your color to Photos and you set it from there. With matching colors, your widgets' edges disappear.")
-            Section {
-                WallpaperSaveFlow(background: HexColor(hex: backgroundHex) ?? HexColor(red: 0, green: 0, blue: 0))
-            }
-            Section {
-                SeamlessTips()
-                    .padding(.vertical, 4)
-            }
-            Section {
-                Toggle("I've set it as my wallpaper", isOn: $wallpaperSet)
-            } footer: {
-                Text("Ebb can't see your wallpaper, so tick this once it's set.")
-            }
-        }
-        .navigationTitle("Wallpaper")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-}
-

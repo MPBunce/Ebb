@@ -28,13 +28,9 @@ struct SettingsView: View {
                 .listRowInsets(EdgeInsets())
 
                 Section("Set up") {
-                    Button { showWalkthrough = true } label: {
-                        SettingsRow(icon: "sparkles", tint: .indigo, title: "Walkthrough",
-                                    subtitle: "Step-by-step setup with explanations")
-                    }
-                    NavigationLink { SetupGuideView() } label: {
-                        SettingsRow(icon: "iphone", tint: .gray, title: "Home Screen setup",
-                                    subtitle: "Wallpaper and widget steps for reference")
+                    NavigationLink { HelpView() } label: {
+                        SettingsRow(icon: "questionmark", tint: .green, title: "Help & Setup",
+                                    subtitle: "Setup checklist, guides, and common questions")
                     }
                 }
 
