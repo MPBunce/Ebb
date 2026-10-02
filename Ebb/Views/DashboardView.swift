@@ -162,83 +162,99 @@ struct DashboardView: View {
 
     private var focusSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 14) {
-                    Image(systemName: focusIcon)
-                        .font(.title3)
-                        .foregroundStyle(focus.isShielding ? .white : .indigo)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(focus.isShielding ? AnyShapeStyle(.indigo) : AnyShapeStyle(.indigo.opacity(0.15))))
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(focusTitle)
-                            .font(.headline)
-                        Text(focusDetail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { router.sheet = .focus }
-
+            if !focus.isAuthorized {
                 Button {
-                    if focus.isAuthorized {
-                        router.sheet = .focus
-                    } else {
-                        Task {
-                            await focus.requestAuthorization()
-                            if focus.isAuthorized { router.sheet = .focus }
-                        }
+                    Task {
+                        await focus.requestAuthorization()
+                        if focus.isAuthorized { router.sheet = .focus }
                     }
                 } label: {
-                    Label(focusAction.title, systemImage: focusAction.icon)
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                    SettingsRow(icon: "lock.shield", tint: .indigo, title: "Turn on blocking",
+                                subtitle: "Block apps during work time, wind-down, and focus sessions",
+                                showsChevron: true)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .tint(.indigo)
+            } else {
+                if let end = focus.sessionEnd, end > .now {
+                    focusRow(icon: "moon.fill", tint: .indigo, title: "Focus session",
+                             detail: "Until \(end.formatted(date: .omitted, time: .shortened))", isActive: true)
+                }
+                ForEach(focus.workPeriods) { period in
+                    focusRow(icon: "briefcase.fill", tint: .blue, title: period.name,
+                             detail: "\(period.daysDescription) · \(period.timeRange)",
+                             isActive: focus.isInWorkPeriod && focus.currentWorkPeriod?.id == period.id,
+                             isOff: !period.isEnabled)
+                }
+                if focus.nightlyEnabled {
+                    focusRow(icon: "bed.double.fill", tint: .purple, title: "Nightly wind-down",
+                             detail: "\(WorkPeriod.format(focus.nightlyStart))–\(WorkPeriod.format(focus.nightlyEnd))",
+                             isActive: focus.activeReasons.contains(.nightly))
+                }
+                if focus.limitEnabled {
+                    focusRow(icon: "hourglass", tint: .orange, title: "Daily limit",
+                             detail: "\(focus.limitMinutes) min a day on blocked apps",
+                             isActive: focus.activeReasons.contains(.dailyLimit))
+                }
+                Button { router.sheet = .focus } label: {
+                    if hasFocusRules {
+                        Label("Manage focus", systemImage: "slider.horizontal.3")
+                    } else {
+                        Label("Add work time, wind-down, or a limit", systemImage: "plus")
+                    }
+                }
             }
-            .padding(.vertical, 6)
         } header: {
             Text("Focus")
+        } footer: {
+            if focus.isAuthorized && !hasFocusRules {
+                Text("Nothing is set up yet. Work time blocks everything except the apps you allow.")
+            }
         }
     }
 
-    /// The one thing to do next with blocking.
-    private var focusAction: (title: String, icon: String) {
-        if !focus.isAuthorized { return ("Turn on blocking", "lock.shield") }
-        if focus.isInWorkPeriod { return ("Manage work time", "briefcase") }
-        if let end = focus.sessionEnd, end > .now { return ("View session", "moon.fill") }
-        if focus.workPeriods.filter(\.isEnabled).isEmpty { return ("Set up work time", "briefcase") }
-        return ("Start a focus session", "moon")
+    private var hasFocusRules: Bool {
+        !focus.workPeriods.isEmpty || focus.nightlyEnabled || focus.limitEnabled
+            || (focus.sessionEnd.map { $0 > .now } ?? false)
     }
 
-    private var focusIcon: String {
-        if focus.isInWorkPeriod { return "briefcase.fill" }
-        return focus.isShielding ? "moon.fill" : "moon"
-    }
-
-    private var focusTitle: String {
-        if !focus.isAuthorized { return "Blocking is off" }
-        if let period = focus.currentWorkPeriod, focus.isInWorkPeriod {
-            return "\(period.name) until \(WorkPeriod.format(period.end))"
+    /// One schedule or rule, with whether it's blocking apps right now.
+    private func focusRow(icon: String, tint: Color, title: String, detail: String,
+                          isActive: Bool, isOff: Bool = false) -> some View {
+        Button { router.sheet = .focus } label: {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: 30, height: 30)
+                    .background(RoundedRectangle(cornerRadius: 7).fill(tint.gradient))
+                    .opacity(isOff ? 0.4 : 1)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .foregroundStyle(isOff ? .secondary : .primary)
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                if isActive {
+                    Text("Now")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(.green))
+                } else if isOff {
+                    Text("Off")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
         }
-        if let end = focus.sessionEnd, end > .now {
-            return "Focusing until \(end.formatted(date: .omitted, time: .shortened))"
-        }
-        return focus.isShielding ? "Apps are blocked" : "Nothing blocked right now"
-    }
-
-    private var focusDetail: String {
-        if !focus.isAuthorized { return "Turn on Screen Time to block apps during work and focus." }
-        let periods = focus.workPeriods.filter(\.isEnabled)
-        if periods.isEmpty { return "Set up work time, focus sessions, and limits." }
-        return periods.map { "\($0.name): \($0.daysDescription) \($0.timeRange)" }.joined(separator: " · ")
+        .accessibilityValue(isActive ? "Blocking now" : isOff ? "Off" : "Scheduled")
     }
 
     private func stat(_ value: String, _ label: String) -> some View {
