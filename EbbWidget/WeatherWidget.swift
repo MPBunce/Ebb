@@ -93,9 +93,10 @@ struct WeatherProvider: AppIntentTimelineProvider {
     private func load() async -> WeatherEntry.Content {
         let cached = WeatherStore.cached
         if let cached, !cached.isStale { return .weather(cached) }
-        let location = await OneShotLocation().current() ?? WeatherStore.lastLocation
-        guard let location else { return cached.map { .weather($0) } ?? .needsLocation }
-        if let fresh = try? await WeatherStore.fetch(for: location) { return .weather(fresh) }
+        guard let target = await WeatherStore.location(using: OneShotLocation()) else {
+            return cached.map { .weather($0) } ?? .needsLocation
+        }
+        if let fresh = try? await WeatherStore.fetch(for: target.location, placeName: target.name) { return .weather(fresh) }
         return cached.map { .weather($0) } ?? .unavailable
     }
 }
@@ -127,7 +128,7 @@ struct WeatherWidgetView: View {
                     content(weather)
                 }
             case .needsLocation:
-                message("Open Ebb to share your location for weather.")
+                message("Open Ebb › Widgets to set your weather location.")
             case .unavailable:
                 message("Weather isn't available right now.")
             }

@@ -91,8 +91,18 @@ nonisolated enum TemperatureUnit: String, CaseIterable {
     }
 }
 
+/// A place chosen in Ebb instead of following the iPhone's location.
+nonisolated struct WeatherPlace: Codable, Equatable {
+    var name: String
+    var latitude: Double
+    var longitude: Double
+
+    var location: CLLocation { CLLocation(latitude: latitude, longitude: longitude) }
+}
+
 nonisolated enum WeatherStore {
     private static let snapshotKey = "weatherSnapshot"
+    private static let placeKey = "weatherPlace"
     private static let latitudeKey = "weatherLatitude"
     private static let longitudeKey = "weatherLongitude"
 
@@ -105,6 +115,26 @@ nonisolated enum WeatherStore {
         if let data = try? JSONEncoder().encode(snapshot) {
             AppGroup.defaults.set(data, forKey: snapshotKey)
         }
+    }
+
+    /// The chosen place, or nil to use the iPhone's location.
+    static var chosenPlace: WeatherPlace? {
+        get {
+            guard let data = AppGroup.defaults.data(forKey: placeKey) else { return nil }
+            return try? JSONDecoder().decode(WeatherPlace.self, from: data)
+        }
+        set {
+            AppGroup.defaults.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: placeKey)
+            // The cached forecast is for the old place.
+            AppGroup.defaults.removeObject(forKey: snapshotKey)
+        }
+    }
+
+    /// Where to get weather for: the chosen place, or the iPhone's location.
+    static func location(using finder: OneShotLocation) async -> (location: CLLocation, name: String?)? {
+        if let place = chosenPlace { return (place.location, place.name) }
+        guard let here = await finder.current() ?? lastLocation else { return nil }
+        return (here, nil)
     }
 
     /// The last location Ebb or the widget found.
@@ -120,13 +150,15 @@ nonisolated enum WeatherStore {
     }
 
     /// Fetches a fresh forecast for `location` and caches it.
-    static func fetch(for location: CLLocation) async throws -> WeatherSnapshot {
+    static func fetch(for location: CLLocation, placeName: String? = nil) async throws -> WeatherSnapshot {
         let (current, hourly, daily) = try await WeatherService.shared.weather(
             for: location, including: .current, .hourly, .daily)
         let today = daily.first
+        var resolvedName = placeName
+        if resolvedName == nil { resolvedName = await self.placeName(for: location) }
         let snapshot = WeatherSnapshot(
             fetched: .now,
-            place: await placeName(for: location),
+            place: resolvedName,
             temperature: current.temperature.converted(to: .celsius).value,
             feelsLike: current.apparentTemperature.converted(to: .celsius).value,
             condition: current.condition.description,
