@@ -776,6 +776,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Ebb/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Ebb;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ebb's Weather widget shows the forecast where you are.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Ebb saves wallpapers that match your widgets to Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -812,6 +813,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Ebb/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Ebb;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ebb's Weather widget shows the forecast where you are.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Ebb saves wallpapers that match your widgets to Photos.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -930,6 +932,7 @@
 				INFOPLIST_FILE = EbbWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EbbWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ebb's Weather widget shows the forecast where you are.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -959,6 +962,7 @@
 				INFOPLIST_FILE = EbbWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = EbbWidget;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Ebb's Weather widget shows the forecast where you are.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

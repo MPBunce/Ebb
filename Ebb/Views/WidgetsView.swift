@@ -40,10 +40,11 @@ struct WidgetsView: View {
             colorsSection
             lifeSection
             timeSavedSection
+            WeatherSection()
             statusSection
 
             Section {
-                Text("Apps and Spacer come in medium and large; the rest also come in small. Every widget follows the alignment above unless you change it. Long-press one › Edit Widget for its options:\n\n**Clock**: style and date.\n**Year**: today, this week, month, or year, shown as a percent, bar, dots, ring, or countdown.\n**Life**: years, weeks & days, percent, bar, years as dots, ring, or weeks left, as life lived or remaining.\n**Time Saved**: a number, a breakdown, or what it adds up to, in minutes, hours, or days.\n**Spacer**: an empty block in your widget color for spacing things out.")
+                Text("Apps and Spacer come in medium and large; the rest also come in small. Every widget follows the alignment above unless you change it. Long-press one › Edit Widget for its options:\n\n**Clock**: style and date.\n**Year**: today, this week, month, or year, shown as a percent, bar, dots, ring, or countdown.\n**Life**: years, weeks & days, percent, bar, years as dots, ring, or weeks left, as life lived or remaining.\n**Time Saved**: a number, a breakdown, or what it adds up to, in minutes, hours, or days.\n**Weather**: now, the next hours, or the week where you are, in °C or °F.\n**Spacer**: an empty block in your widget color for spacing things out.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             } header: {
@@ -292,6 +293,7 @@ struct WidgetsView: View {
         ("EbbYear", "Year", "calendar"),
         ("EbbLife", "Life", "hourglass"),
         ("EbbTimeSaved", "Time Saved", "leaf"),
+        ("EbbWeather", "Weather", "cloud.sun"),
         ("EbbSpacer", "Spacer", "rectangle.dashed"),
         ("EbbOpen", "Open Ebb", "water.waves"),
     ]

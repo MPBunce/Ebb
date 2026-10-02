@@ -105,7 +105,7 @@ private struct PlusLocked: View {
     }
 }
 
-private extension WidgetFamily {
+extension WidgetFamily {
     var isAccessory: Bool { [.accessoryCircular, .accessoryRectangular, .accessoryInline].contains(self) }
 
     /// Big-number size for each family.

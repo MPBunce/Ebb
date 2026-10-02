@@ -6,6 +6,7 @@
 import Foundation
 import ManagedSettings
 import Observation
+import UIKit
 
 /// Sheets presented over the home screen.
 enum HomeSheet: String, Identifiable, Codable {
@@ -60,6 +61,12 @@ final class Router {
             Task {
                 try? await Task.sleep(for: .milliseconds(isMindful ? 400 : 150))
                 store.requestLaunch(id: id)
+            }
+        case .weather:
+            // The Weather widget opens Apple Weather, through Ebb like app launches.
+            Task {
+                try? await Task.sleep(for: .milliseconds(150))
+                if let url = URL(string: "weather://") { await UIApplication.shared.open(url) }
             }
         }
     }

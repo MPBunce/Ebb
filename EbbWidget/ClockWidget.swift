@@ -55,18 +55,9 @@ struct ClockProvider: AppIntentTimelineProvider {
 
     func timeline(for configuration: ClockConfigurationIntent, in context: Context) async -> Timeline<ClockEntry> {
         let style = configuration.style
-        let now = Date.now
-        if style == .digital {
-            // Digital text ticks by itself; entries keep the day bar moving.
-            let entries = (0...96).map { ClockEntry(date: now.addingTimeInterval(Double($0) * 900), style: style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved) }
-            return Timeline(entries: entries, policy: .atEnd)
-        }
-        // Drawn styles need an entry for every minute.
-        let calendar = Calendar.current
-        let startOfMinute = calendar.date(bySetting: .second, value: 0, of: now).map {
-            $0 > now ? $0.addingTimeInterval(-60) : $0
-        } ?? now
-        let entries = (0..<120).map { ClockEntry(date: startOfMinute.addingTimeInterval(Double($0) * 60), style: style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved) }
+        // `Text(date, style: .time)` shows the entry's time and doesn't tick by itself, so
+        // every style needs an entry on each minute boundary to stay in step with the status bar.
+        let entries = MinuteTimeline.dates().map { ClockEntry(date: $0, style: style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved) }
         return Timeline(entries: entries, policy: .atEnd)
     }
 }
@@ -320,4 +311,12 @@ struct ClockWidget: Widget {
 } timeline: {
     ClockEntry(date: .now, style: .digital)
     ClockEntry(date: .now, style: .analog)
+}
+
+/// Entry dates on each minute boundary, starting with the current minute.
+enum MinuteTimeline {
+    static func dates(from now: Date = .now, count: Int = 180) -> [Date] {
+        let start = Calendar.current.dateInterval(of: .minute, for: now)?.start ?? now
+        return (0..<count).map { start.addingTimeInterval(Double($0) * 60) }
+    }
 }

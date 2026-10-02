@@ -123,10 +123,16 @@ struct LauncherProvider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: LauncherConfigurationIntent, in context: Context) async -> Timeline<LauncherEntry> {
-        // Ebb reloads widgets whenever apps or colors change; the clock text ticks by itself.
+        // Ebb reloads widgets whenever apps or colors change. The optional clock needs an
+        // entry every minute, because time text doesn't tick by itself.
+        let content = resolve(configuration)
+        if configuration.showClock {
+            let entries = MinuteTimeline.dates().map { LauncherEntry(date: $0, content: content, configuration: configuration) }
+            return Timeline(entries: entries, policy: .atEnd)
+        }
         let midnight = Calendar.current.startOfDay(for: .now.addingTimeInterval(24 * 60 * 60))
         return Timeline(
-            entries: [LauncherEntry(date: .now, content: resolve(configuration), configuration: configuration)],
+            entries: [LauncherEntry(date: .now, content: content, configuration: configuration)],
             policy: .after(midnight)
         )
     }
