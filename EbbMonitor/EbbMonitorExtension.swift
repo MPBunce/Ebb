@@ -23,7 +23,7 @@ final class EbbMonitorExtension: DeviceActivityMonitor {
         default:
             // Work periods repeat daily; only block on the chosen weekdays.
             if let period = WorkPeriod.period(for: activity), period.isEnabled, period.applies(on: .now) {
-                ShieldController.activate(.work)
+                ShieldController.startFocus(period.id)
             }
         }
     }
@@ -42,9 +42,8 @@ final class EbbMonitorExtension: DeviceActivityMonitor {
             // Daily usage limits reset at midnight.
             ShieldController.deactivate(.dailyLimit)
         default:
-            if WorkPeriod.period(for: activity) != nil {
-                // Another period may still be running (overlapping schedules).
-                ShieldController.reconcileWorkPeriods()
+            if let period = WorkPeriod.period(for: activity) {
+                ShieldController.endFocus(period.id)
             } else if let slot = Allowance.slot(for: activity) {
                 ShieldController.endAllowance(slot: slot)
                 DeviceActivityCenter().stopMonitoring([activity])

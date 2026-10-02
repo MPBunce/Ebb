@@ -260,6 +260,23 @@ struct WorkPeriodTests {
         let period = WorkPeriod(start: 0, end: 23 * 60, weekdays: Set(1...7), isEnabled: false)
         #expect(!period.contains(date(weekday: 3, hour: 12), calendar: calendar))
     }
+
+    @Test func oldSavedPeriodsBlockOnlyTheirApps() throws {
+        // Saved before focuses had their own apps and mode.
+        let json = #"{"id":"6B1C1F7E-2D5B-4E0A-9A57-5E3C7B7A1D11","name":"Work","start":540,"end":1020,"weekdays":[2,3,4,5,6],"isEnabled":true}"#
+        let period = try JSONDecoder().decode(WorkPeriod.self, from: Data(json.utf8))
+        #expect(period.name == "Work")
+        #expect(period.mode == .blockSelected)
+        #expect(!period.hasApps)
+    }
+
+    @Test func roundTripsModeAndApps() throws {
+        var period = WorkPeriod(name: "Study", start: 600, end: 720)
+        period.mode = .allowOnly
+        let decoded = try JSONDecoder().decode(WorkPeriod.self, from: JSONEncoder().encode(period))
+        #expect(decoded == period)
+        #expect(decoded.appsSummary == "Blocks everything")
+    }
 }
 
 @MainActor

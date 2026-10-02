@@ -2,13 +2,32 @@
 //  WorkPeriod.swift
 //  Shared between Ebb and its Screen Time extensions.
 //
-//  Scheduled stretches of time when everything is blocked except the apps the user allows.
+//  A scheduled focus: on chosen days and hours, block the apps the user picked for it
+//  (or, in "allow only" mode, everything except them).
 //
 
 import DeviceActivity
+import FamilyControls
 import Foundation
 
-nonisolated struct WorkPeriod: Codable, Hashable, Identifiable {
+/// What a focus does with its apps.
+nonisolated enum FocusBlockMode: String, Codable, CaseIterable, Identifiable {
+    /// Block the chosen apps; everything else stays open.
+    case blockSelected
+    /// Block everything except the chosen apps.
+    case allowOnly
+
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .blockSelected: "Block these apps"
+        case .allowOnly: "Allow only these"
+        }
+    }
+}
+
+nonisolated struct WorkPeriod: Codable, Identifiable, Equatable {
     var id = UUID()
     var name = "Work"
     /// Minutes after midnight.
@@ -17,6 +36,27 @@ nonisolated struct WorkPeriod: Codable, Hashable, Identifiable {
     /// Calendar weekdays, 1 = Sunday … 7 = Saturday.
     var weekdays: Set<Int> = [2, 3, 4, 5, 6]
     var isEnabled = true
+    var mode = FocusBlockMode.blockSelected
+    /// The apps, categories, and sites this focus blocks (or allows, in allow-only mode).
+    var selection = FamilyActivitySelection()
+
+    var hasApps: Bool {
+        !selection.applicationTokens.isEmpty || !selection.categoryTokens.isEmpty || !selection.webDomainTokens.isEmpty
+    }
+
+    /// "3 apps blocked", "Only 2 apps allowed", or a prompt to choose.
+    var appsSummary: String {
+        let apps = selection.applicationTokens.count
+        let categories = selection.categoryTokens.count
+        let sites = selection.webDomainTokens.count
+        var parts: [String] = []
+        if apps > 0 { parts.append("\(apps) app\(apps == 1 ? "" : "s")") }
+        if categories > 0 { parts.append("\(categories) categor\(categories == 1 ? "y" : "ies")") }
+        if sites > 0 { parts.append("\(sites) site\(sites == 1 ? "" : "s")") }
+        guard !parts.isEmpty else { return mode == .allowOnly ? "Blocks everything" : "No apps chosen" }
+        let list = parts.joined(separator: ", ")
+        return mode == .allowOnly ? "Only \(list) allowed" : "\(list) blocked"
+    }
 
     static let activityPrefix = "ebb.work."
 
@@ -62,6 +102,12 @@ nonisolated struct WorkPeriod: Codable, Hashable, Identifiable {
         return date.formatted(date: .omitted, time: .shortened)
     }
 
+    // MARK: Coding
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, start, end, weekdays, isEnabled, mode, selection
+    }
+
     // MARK: Storage
 
     private static let key = "workPeriods"
@@ -80,5 +126,21 @@ nonisolated struct WorkPeriod: Codable, Hashable, Identifiable {
         guard activity.rawValue.hasPrefix(activityPrefix) else { return nil }
         let id = String(activity.rawValue.dropFirst(activityPrefix.count))
         return loadAll().first { $0.id.uuidString == id }
+    }
+}
+
+
+nonisolated extension WorkPeriod {
+    /// Periods saved before focuses had their own apps decode with defaults.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        start = try c.decode(Int.self, forKey: .start)
+        end = try c.decode(Int.self, forKey: .end)
+        weekdays = try c.decode(Set<Int>.self, forKey: .weekdays)
+        isEnabled = try c.decode(Bool.self, forKey: .isEnabled)
+        mode = try c.decodeIfPresent(FocusBlockMode.self, forKey: .mode) ?? .blockSelected
+        selection = try c.decodeIfPresent(FamilyActivitySelection.self, forKey: .selection) ?? FamilyActivitySelection()
     }
 }

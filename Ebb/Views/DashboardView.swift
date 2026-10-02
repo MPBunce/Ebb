@@ -179,15 +179,10 @@ struct DashboardView: View {
                              detail: "Until \(end.formatted(date: .omitted, time: .shortened))", isActive: true)
                 }
                 ForEach(focus.workPeriods) { period in
-                    focusRow(icon: "briefcase.fill", tint: .blue, title: period.name,
-                             detail: "\(period.daysDescription) · \(period.timeRange)",
-                             isActive: focus.isInWorkPeriod && focus.currentWorkPeriod?.id == period.id,
+                    focusRow(icon: period.mode == .allowOnly ? "lock.fill" : "moon.fill", tint: .indigo, title: period.name,
+                             detail: "\(period.daysDescription) · \(period.timeRange) · \(period.appsSummary)",
+                             isActive: focus.isRunning(period),
                              isOff: !period.isEnabled)
-                }
-                if focus.nightlyEnabled {
-                    focusRow(icon: "bed.double.fill", tint: .purple, title: "Nightly wind-down",
-                             detail: "\(WorkPeriod.format(focus.nightlyStart))–\(WorkPeriod.format(focus.nightlyEnd))",
-                             isActive: focus.activeReasons.contains(.nightly))
                 }
                 if focus.limitEnabled {
                     focusRow(icon: "hourglass", tint: .orange, title: "Daily limit",
@@ -198,7 +193,7 @@ struct DashboardView: View {
                     if hasFocusRules {
                         Label("Manage focus", systemImage: "slider.horizontal.3")
                     } else {
-                        Label("Add work time, wind-down, or a limit", systemImage: "plus")
+                        Label("Create a focus", systemImage: "plus")
                     }
                 }
             }
@@ -206,13 +201,13 @@ struct DashboardView: View {
             Text("Focus")
         } footer: {
             if focus.isAuthorized && !hasFocusRules {
-                Text("Nothing is set up yet. Work time blocks everything except the apps you allow.")
+                Text("Nothing is set up yet. A focus blocks the apps you choose on a schedule.")
             }
         }
     }
 
     private var hasFocusRules: Bool {
-        !focus.workPeriods.isEmpty || focus.nightlyEnabled || focus.limitEnabled
+        !focus.workPeriods.isEmpty || focus.limitEnabled
             || (focus.sessionEnd.map { $0 > .now } ?? false)
     }
 

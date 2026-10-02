@@ -75,7 +75,37 @@ final class FocusManager {
         limitEnabled = defaults.bool(forKey: Key.limitEnabled)
         limitMinutes = defaults.object(forKey: Key.limitMinutes) as? Int ?? 30
         strictSessions = defaults.bool(forKey: Key.strictSessions)
+        migrateToFocuses()
         refresh()
+    }
+
+    /// Focuses used to share one "allowed during work" list and blocked everything else, and
+    /// wind-down was a separate setting. Now each focus has its own apps and blocks only those,
+    /// so earlier work times keep the apps that were checked, and wind-down becomes a focus.
+    private func migrateToFocuses() {
+        let key = "focusMigrationVersion"
+        guard defaults.integer(forKey: key) < 1 else { return }
+        defaults.set(1, forKey: key)
+
+        var periods = workPeriods
+        for index in periods.indices where !periods[index].hasApps {
+            periods[index].selection = allowedSelection
+        }
+        if nightlyEnabled {
+            var windDown = WorkPeriod(name: "Wind-down", start: nightlyStart, end: nightlyEnd, weekdays: Set(1...7))
+            windDown.selection = selection
+            periods.append(windDown)
+            nightlyEnabled = false
+            defaults.set(false, forKey: Key.nightlyEnabled)
+            center.stopMonitoring([.nightly])
+            ShieldController.deactivate(.nightly)
+        }
+        if periods != workPeriods {
+            // Observers don't run during init, so save and reschedule explicitly.
+            workPeriods = periods
+            WorkPeriod.saveAll(periods)
+            scheduleWorkPeriods()
+        }
     }
 
     var isAuthorized: Bool { authorizationStatus == .approved }
@@ -106,6 +136,11 @@ final class FocusManager {
         if apps > 0 { parts.append("\(apps) app\(apps == 1 ? "" : "s")") }
         if sites > 0 { parts.append("\(sites) site\(sites == 1 ? "" : "s")") }
         return parts.isEmpty ? "None yet" : parts.joined(separator: ", ")
+    }
+
+    /// Whether this focus is blocking apps right now.
+    func isRunning(_ period: WorkPeriod) -> Bool {
+        ShieldController.activeFocusIDs.contains(period.id) && activeReasons.contains(.work)
     }
 
     /// The work period running now, if any.
