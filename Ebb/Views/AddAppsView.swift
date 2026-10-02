@@ -29,7 +29,11 @@ struct CatalogPicker: View {
     @Environment(LauncherStore.self) private var store
     @State private var query = ""
     @State private var showFull = false
-    @State private var isAddingCustom = false
+    @State private var storeResults: [AppStoreSearchView.StoreApp] = []
+    @State private var isSearchingStore = false
+    @State private var needsShortcut: AppStoreSearchView.StoreApp?
+    @State private var isAddingManually = false
+    @State private var installed: [CatalogApp] = []
     var addsToHome = false
     /// When set, tapping an app puts it on (or takes it off) this app widget.
     var widgetID: UUID?
@@ -41,8 +45,6 @@ struct CatalogPicker: View {
         if let widget { return widget.appIDs.contains(target.id) }
         return true
     }
-
-    @State private var installed: [CatalogApp] = []
 
     private var grouped: [(String, [CatalogApp])] {
         let apps = query.isEmpty
@@ -57,19 +59,14 @@ struct CatalogPicker: View {
         return (found.isEmpty ? [] : [("On this iPhone", found)]) + rest
     }
 
+    /// App Store results that aren't already shown from Ebb's own list.
+    private var extraStoreResults: [AppStoreSearchView.StoreApp] {
+        let known = Set(AppCatalog.bundleIDs.values)
+        return storeResults.filter { !known.contains($0.bundleId) }
+    }
 
     var body: some View {
         List {
-            Section {
-                Button {
-                    isAddingCustom = true
-                } label: {
-                    Label("Add an app that isn't listed", systemImage: "plus.circle")
-                }
-                .buttonStyle(.borderless)
-            } footer: {
-                Text("iPhone doesn't let Ebb see which apps you have, so pick from this list. For anything else, add it with a Shortcut (works for every app) or the app's link.")
-            }
             ForEach(grouped, id: \.0) { title, apps in
                 Section(title) {
                     ForEach(apps) { app in
@@ -92,17 +89,73 @@ struct CatalogPicker: View {
                     }
                 }
             }
+
+            if !query.isEmpty {
+                Section {
+                    if isSearchingStore && extraStoreResults.isEmpty {
+                        HStack { Spacer(); ProgressView(); Spacer() }
+                    }
+                    ForEach(extraStoreResults) { app in
+                        StoreAppRow(app: app, query: query) { addFromStore(app) }
+                    }
+                } header: {
+                    Text("More on the App Store")
+                } footer: {
+                    if !isSearchingStore && extraStoreResults.isEmpty && grouped.isEmpty {
+                        Text("No apps found for “\(query)”.")
+                    }
+                }
+            }
+
+            Section {
+                Button("Add by link or Shortcut") { isAddingManually = true }
+            } footer: {
+                Text(query.isEmpty
+                     ? "Search to find any app on the App Store. iPhone doesn't let Ebb see which apps you have."
+                     : "Can't find it? Add any app with a Shortcut.")
+            }
         }
         .searchable(text: $query, prompt: "Search apps")
+        .task(id: query) { await searchStore() }
         .onAppear { installed = InstalledApps.detect() }
         .alert("This widget is full", isPresented: $showFull) {
             Button("OK", role: .cancel) {}
         } message: {
             Text("An app widget holds \(AppWidgetList.capacity) apps. Remove one, or add this app to another app widget.")
         }
-        .sheet(isPresented: $isAddingCustom) {
-            NavigationStack { AppStoreSearchView(widgetID: widgetID) }
+        .sheet(item: $needsShortcut) { app in
+            NavigationStack { ShortcutSetupView(app: app, widgetID: widgetID) {} }
         }
+        .sheet(isPresented: $isAddingManually) {
+            NavigationStack { TargetEditor(target: nil, widgetID: widgetID) }
+        }
+    }
+
+    private func searchStore() async {
+        let term = query.trimmingCharacters(in: .whitespaces)
+        guard term.count >= 2 else { storeResults = []; return }
+        try? await Task.sleep(for: .milliseconds(350))
+        guard !Task.isCancelled else { return }
+        isSearchingStore = true
+        defer { isSearchingStore = false }
+        let results = await AppStoreSearchView.search(term)
+        guard !Task.isCancelled else { return }
+        storeResults = results
+    }
+
+    private func addFromStore(_ app: AppStoreSearchView.StoreApp) {
+        guard let scheme = AppCatalog.scheme(forBundleID: app.bundleId) else {
+            needsShortcut = app
+            return
+        }
+        if let widget, widget.isFull {
+            showFull = true
+            return
+        }
+        let target = LaunchTarget(name: app.shortName(matching: query), method: .urlScheme(scheme), bundleID: app.bundleId)
+        store.add(target)
+        if let widgetID { store.toggle(target.id, in: widgetID) } else if addsToHome { store.addToFirstOpenList(target.id) }
+        storeResults.removeAll { $0.id == app.id }
     }
 
     private func toggle(_ app: CatalogApp) {
@@ -126,6 +179,41 @@ struct CatalogPicker: View {
             store.add(target)
             if addsToHome { store.addToFirstOpenList(target.id) }
         }
+    }
+}
+
+/// One App Store search result.
+struct StoreAppRow: View {
+    let app: AppStoreSearchView.StoreApp
+    var query = ""
+    let action: () -> Void
+
+    var body: some View {
+        let known = AppCatalog.scheme(forBundleID: app.bundleId) != nil
+        Button(action: action) {
+            HStack(spacing: 14) {
+                AsyncImage(url: app.artworkUrl100.flatMap(URL.init(string:))) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Color.secondary.opacity(0.15)
+                }
+                .frame(width: 34, height: 34)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(app.shortName(matching: query)).foregroundStyle(.primary).lineLimit(1)
+                    Text(known ? "Adds in one tap" : "Opens with a Shortcut")
+                        .font(.caption)
+                        .foregroundStyle(known ? Color.green : Color.secondary)
+                }
+                Spacer()
+                Image(systemName: "plus.circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -259,19 +347,8 @@ struct TargetEditor: View {
     }
 }
 
-/// Search the App Store for an app that isn't in Ebb's list. Ebb adds it in one tap when it
-/// knows the app's launch link, or sets up a Shortcut for it otherwise.
-struct AppStoreSearchView: View {
-    @Environment(LauncherStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
-    var widgetID: UUID?
-
-    @State private var query = ""
-    @State private var results: [StoreApp] = []
-    @State private var isSearching = false
-    @State private var needsShortcut: StoreApp?
-
+/// App Store lookups used by the app search.
+enum AppStoreSearchView {
     struct StoreApp: Decodable, Identifiable, Hashable {
         let trackId: Int
         let trackName: String
@@ -281,82 +358,30 @@ struct AppStoreSearchView: View {
         var id: Int { trackId }
 
         /// "Spotify: Music and Podcasts" reads as "Spotify" on a widget.
-        var shortName: String {
-            let cut = trackName.split(whereSeparator: { ":–—-|".contains($0) }).first.map(String.init) ?? trackName
-            return cut.trimmingCharacters(in: .whitespaces)
+        var shortName: String { shortName(matching: "") }
+
+        /// The app's name without its App Store tagline. Usually that's the part before
+        /// the colon or dash, unless only the part after it matches the search
+        /// ("LINE: Disney Tsum Tsum" for "Disney").
+        func shortName(matching query: String) -> String {
+            var parts = [trackName]
+            for separator in [": ", " - ", " – ", " — ", " | "] {
+                parts = parts.flatMap { $0.components(separatedBy: separator) }
+            }
+            parts = parts.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            guard let first = parts.first else { return trackName }
+            let term = query.trimmingCharacters(in: .whitespaces)
+            if !term.isEmpty, !first.localizedStandardContains(term),
+               let match = parts.dropFirst().first(where: { $0.localizedStandardContains(term) }) {
+                return match
+            }
+            return first
         }
     }
 
-    var body: some View {
-        List {
-            if query.isEmpty {
-                Section {
-                    Label("Type an app's name to find it on the App Store.", systemImage: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                } footer: {
-                    Text("Many apps can be added in one tap. For the rest, Ebb helps you set up a Shortcut, which works for any app.")
-                }
-            } else if results.isEmpty && !isSearching {
-                ContentUnavailableView.search(text: query)
-            }
-            ForEach(results) { app in
-                let known = AppCatalog.scheme(forBundleID: app.bundleId) != nil
-                Button {
-                    add(app)
-                } label: {
-                    HStack(spacing: 14) {
-                        AsyncImage(url: app.artworkUrl100.flatMap(URL.init(string:))) { image in
-                            image.resizable().scaledToFill()
-                        } placeholder: {
-                            Color.secondary.opacity(0.15)
-                        }
-                        .frame(width: 40, height: 40)
-                        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(app.shortName).foregroundStyle(.primary)
-                            Text(known ? "Adds in one tap" : "Opens with a Shortcut")
-                                .font(.caption)
-                                .foregroundStyle(known ? Color.green : Color.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .padding(.vertical, 4)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-            Section {
-                NavigationLink("Add by link or Shortcut instead") {
-                    TargetEditor(target: nil, widgetID: widgetID)
-                }
-            }
-        }
-        .overlay { if isSearching && results.isEmpty { ProgressView() } }
-        .navigationTitle("Find an app")
-        .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "App Store")
-        .task(id: query) { await search() }
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close", systemImage: "xmark") { dismiss() }
-            }
-        }
-        .sheet(item: $needsShortcut) { app in
-            NavigationStack { ShortcutSetupView(app: app, widgetID: widgetID) { dismiss() } }
-        }
-    }
+    private struct Response: Decodable { let results: [StoreApp] }
 
-    private func search() async {
-        let term = query.trimmingCharacters(in: .whitespaces)
-        guard term.count >= 2 else { results = []; return }
-        // Wait for typing to pause.
-        try? await Task.sleep(for: .milliseconds(350))
-        guard !Task.isCancelled else { return }
-        isSearching = true
-        defer { isSearching = false }
+    static func search(_ term: String) async -> [StoreApp] {
         var components = URLComponents(string: "https://itunes.apple.com/search")
         components?.queryItems = [
             URLQueryItem(name: "term", value: term),
@@ -366,23 +391,9 @@ struct AppStoreSearchView: View {
         ]
         guard let url = components?.url,
               let (data, _) = try? await URLSession.shared.data(from: url),
-              let decoded = try? JSONDecoder().decode(Response.self, from: data),
-              !Task.isCancelled
-        else { return }
-        results = decoded.results
-    }
-
-    private struct Response: Decodable { let results: [StoreApp] }
-
-    private func add(_ app: StoreApp) {
-        guard let scheme = AppCatalog.scheme(forBundleID: app.bundleId) else {
-            needsShortcut = app
-            return
-        }
-        let target = LaunchTarget(name: app.shortName, method: .urlScheme(scheme), bundleID: app.bundleId)
-        store.add(target)
-        if let widgetID { store.toggle(target.id, in: widgetID) } else { store.addToFirstOpenList(target.id) }
-        dismiss()
+              let decoded = try? JSONDecoder().decode(Response.self, from: data)
+        else { return [] }
+        return decoded.results
     }
 }
 

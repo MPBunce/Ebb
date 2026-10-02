@@ -347,3 +347,21 @@ struct CatalogTests {
         #expect(declared.count == thirdParty.count)
     }
 }
+
+@MainActor
+struct StoreNameTests {
+    private func app(_ name: String) -> AppStoreSearchView.StoreApp {
+        AppStoreSearchView.StoreApp(trackId: 1, trackName: name, bundleId: "x", sellerName: nil, artworkUrl100: nil)
+    }
+
+    @Test func dropsTaglines() {
+        #expect(app("Spotify: Music and Podcasts").shortName == "Spotify")
+        #expect(app("Uber - Rides, Eats, Hotels").shortName == "Uber")
+        #expect(app("Wi-Fi Finder").shortName == "Wi-Fi Finder")
+    }
+
+    @Test func keepsThePartThatMatchesTheSearch() {
+        #expect(app("LINE: Disney Tsum Tsum").shortName(matching: "Disney") == "Disney Tsum Tsum")
+        #expect(app("Spotify: Music and Podcasts").shortName(matching: "spot") == "Spotify")
+    }
+}
