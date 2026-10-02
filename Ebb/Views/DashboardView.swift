@@ -19,6 +19,8 @@ struct DashboardView: View {
     @AppStorage(AppGroup.Key.wallpaperSet, store: AppGroup.defaults) private var wallpaperSet = false
 
     @State private var widgetsAdded = false
+    /// The focus being created or edited from the main screen.
+    @State private var editingFocus: WorkPeriod?
     @State private var path: [DashboardRoute] = []
     /// Where the user was, so Ebb reopens to the same screen even after iOS closes it.
     @SceneStorage("dashboardPath") private var savedPath = ""
@@ -83,6 +85,12 @@ struct DashboardView: View {
         .onChange(of: router.sheet) { _, sheet in savedSheet = sheet?.rawValue ?? "" }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await refreshWidgets() } }
+        }
+        .sheet(item: $editingFocus) { period in
+            NavigationStack {
+                FocusEditor(period: period, isNew: !focus.workPeriods.contains { $0.id == period.id })
+            }
+            .ebbColorScheme()
         }
         .sheet(item: $router.sheet) { sheet in
             Group {
@@ -174,47 +182,53 @@ struct DashboardView: View {
                                 showsChevron: true)
                 }
             } else {
+                Button {
+                    editingFocus = WorkPeriod(name: "Focus")
+                    Task { await focus.requestNotificationPermission() }
+                } label: {
+                    SettingsRow(icon: "plus", tint: .indigo, title: "New focus",
+                                subtitle: "Block apps on the days and hours you choose")
+                }
                 if let end = focus.sessionEnd, end > .now {
                     focusRow(icon: "moon.fill", tint: .indigo, title: "Focus session",
-                             detail: "Until \(end.formatted(date: .omitted, time: .shortened))", isActive: true)
+                             detail: "Until \(end.formatted(date: .omitted, time: .shortened))", isActive: true) {
+                        router.sheet = .focus
+                    }
                 }
                 ForEach(focus.workPeriods) { period in
                     focusRow(icon: period.mode == .allowOnly ? "lock.fill" : "moon.fill", tint: .indigo, title: period.name,
                              detail: "\(period.daysDescription) · \(period.timeRange) · \(period.appsSummary)",
                              isActive: focus.isRunning(period),
-                             isOff: !period.isEnabled)
+                             isOff: !period.isEnabled) {
+                        editingFocus = period
+                    }
                 }
                 if focus.limitEnabled {
                     focusRow(icon: "hourglass", tint: .orange, title: "Daily limit",
                              detail: "\(focus.limitMinutes) min a day on blocked apps",
-                             isActive: focus.activeReasons.contains(.dailyLimit))
+                             isActive: focus.activeReasons.contains(.dailyLimit)) {
+                        router.sheet = .focus
+                    }
                 }
                 Button { router.sheet = .focus } label: {
-                    if hasFocusRules {
-                        Label("Manage focus", systemImage: "slider.horizontal.3")
-                    } else {
-                        Label("Create a focus", systemImage: "plus")
-                    }
+                    Label("Focus now, limits & more", systemImage: "slider.horizontal.3")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
             }
         } header: {
             Text("Focus")
         } footer: {
-            if focus.isAuthorized && !hasFocusRules {
-                Text("Nothing is set up yet. A focus blocks the apps you choose on a schedule.")
+            if focus.isAuthorized && !focus.workPeriods.isEmpty {
+                Text("Tap a focus to edit or delete it.")
             }
         }
     }
 
-    private var hasFocusRules: Bool {
-        !focus.workPeriods.isEmpty || focus.limitEnabled
-            || (focus.sessionEnd.map { $0 > .now } ?? false)
-    }
-
     /// One schedule or rule, with whether it's blocking apps right now.
     private func focusRow(icon: String, tint: Color, title: String, detail: String,
-                          isActive: Bool, isOff: Bool = false) -> some View {
-        Button { router.sheet = .focus } label: {
+                          isActive: Bool, isOff: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
                     .font(.system(size: 15, weight: .medium))

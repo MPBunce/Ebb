@@ -231,7 +231,7 @@ private struct FocusRow: View {
 }
 
 /// Create or edit a focus: name, hours, days, and its apps.
-private struct FocusEditor: View {
+struct FocusEditor: View {
     @Environment(FocusManager.self) private var focus
     @Environment(\.dismiss) private var dismiss
     @State var period: WorkPeriod
