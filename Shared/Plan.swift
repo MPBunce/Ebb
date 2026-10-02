@@ -13,7 +13,14 @@ nonisolated enum EbbPlus {
 
     /// Whether Plus features are unlocked. Set by purchases later, or the debug switch for now.
     static var isActive: Bool {
-        get { AppGroup.defaults.bool(forKey: key) }
+        get {
+            #if DEBUG
+            // Development builds (installed from Xcode) are full access unless switched off.
+            return AppGroup.defaults.object(forKey: key) as? Bool ?? true
+            #else
+            return AppGroup.defaults.bool(forKey: key)
+            #endif
+        }
         set { AppGroup.defaults.set(newValue, forKey: key) }
     }
 
