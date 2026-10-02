@@ -691,11 +691,12 @@ struct LifeWidget: Widget {
 // MARK: - Time saved
 
 enum SavedStyle: String, AppEnum {
-    case number, breakdown, equivalents
+    case number, big, breakdown, equivalents
 
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Style"
     static let caseDisplayRepresentations: [SavedStyle: DisplayRepresentation] = [
         .number: "Number",
+        .big: "Big",
         .breakdown: "Breakdown",
         .equivalents: "What It Adds Up To (Plus)",
     ]
@@ -763,6 +764,7 @@ struct TimeSavedWidgetView: View {
             } else {
                 switch style {
                 case .number: number(saved)
+                case .big: big(saved)
                 case .breakdown: breakdown(saved)
                 case .equivalents: equivalents(saved)
                 }
@@ -830,6 +832,28 @@ struct TimeSavedWidgetView: View {
             Caption(text: since(saved))
         }
         .frame(maxWidth: .infinity, alignment: align.frame)
+    }
+
+    /// The number as large as the widget allows.
+    private func big(_ saved: TimeSaved) -> some View {
+        let total = amount(saved.totalMinutes)
+        return VStack(alignment: align.horizontal, spacing: 0) {
+            Caption(text: "time given back")
+            Spacer(minLength: 0)
+            Text(total.value)
+                .font(.system(size: 400, weight: .ultraLight))
+                .monospacedDigit()
+                .minimumScaleFactor(0.05)
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: align.frame)
+            Spacer(minLength: 0)
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(total.unit) saved").font(family == .systemLarge ? .title2.weight(.light) : .subheadline.weight(.light))
+                Spacer()
+                Caption(text: since(saved))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: align.frame)
     }
 
     private func breakdown(_ saved: TimeSaved) -> some View {
