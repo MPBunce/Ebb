@@ -162,28 +162,60 @@ struct DashboardView: View {
 
     private var focusSection: some View {
         Section {
-            Button { router.sheet = .focus } label: {
+            VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 14) {
                     Image(systemName: focusIcon)
                         .font(.title3)
-                        .frame(width: 30)
-                        .foregroundStyle(focus.isShielding ? .indigo : .secondary)
+                        .foregroundStyle(focus.isShielding ? .white : .indigo)
+                        .frame(width: 40, height: 40)
+                        .background(Circle().fill(focus.isShielding ? AnyShapeStyle(.indigo) : AnyShapeStyle(.indigo.opacity(0.15))))
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(focusTitle)
-                            .foregroundStyle(.primary)
+                            .font(.headline)
                         Text(focusDetail)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
+                    Spacer(minLength: 0)
                 }
+                .contentShape(Rectangle())
+                .onTapGesture { router.sheet = .focus }
+
+                Button {
+                    if focus.isAuthorized {
+                        router.sheet = .focus
+                    } else {
+                        Task {
+                            await focus.requestAuthorization()
+                            if focus.isAuthorized { router.sheet = .focus }
+                        }
+                    }
+                } label: {
+                    Label(focusAction.title, systemImage: focusAction.icon)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.capsule)
+                .tint(.indigo)
             }
+            .padding(.vertical, 6)
         } header: {
             Text("Focus")
         }
+    }
+
+    /// The one thing to do next with blocking.
+    private var focusAction: (title: String, icon: String) {
+        if !focus.isAuthorized { return ("Turn on blocking", "lock.shield") }
+        if focus.isInWorkPeriod { return ("Manage work time", "briefcase") }
+        if let end = focus.sessionEnd, end > .now { return ("View session", "moon.fill") }
+        if focus.workPeriods.filter(\.isEnabled).isEmpty { return ("Set up work time", "briefcase") }
+        return ("Start a focus session", "moon")
     }
 
     private var focusIcon: String {

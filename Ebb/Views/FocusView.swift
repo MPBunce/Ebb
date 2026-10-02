@@ -24,11 +24,33 @@ struct FocusView: View {
             Form {
                 if !focus.isAuthorized {
                     Section {
-                        Text("Ebb uses Screen Time to block distracting apps. Your app choices stay private: Apple shares only anonymous tokens with Ebb, never what you picked.")
-                            .font(.callout)
-                        Button("Allow Screen Time access") {
-                            Task { await focus.requestAuthorization() }
+                        VStack(spacing: 14) {
+                            Image(systemName: "lock.shield")
+                                .font(.system(size: 34))
+                                .foregroundStyle(.indigo)
+                                .frame(width: 64, height: 64)
+                                .background(Circle().fill(.indigo.opacity(0.15)))
+                            Text("Turn on blocking")
+                                .font(.title3.weight(.semibold))
+                            Text("Ebb uses Screen Time to block distracting apps during work and focus. Your choices stay private: Apple only gives Ebb anonymous tokens, never which apps you picked.")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button {
+                                Task { await focus.requestAuthorization() }
+                            } label: {
+                                Text("Allow Screen Time access")
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .buttonBorderShape(.capsule)
+                            .tint(.indigo)
                         }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                     }
                 }
 
