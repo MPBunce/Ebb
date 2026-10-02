@@ -106,8 +106,8 @@ struct FocusView: View {
             .navigationTitle("Focus")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(role: .close) { dismiss() }
                 }
             }
             .familyActivityPicker(isPresented: $isPicking, selection: $focus.selection)
@@ -261,7 +261,7 @@ private struct WorkPeriodEditor: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
             }
-            ToolbarItem(placement: .confirmationAction) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
                     if let index = focus.workPeriods.firstIndex(where: { $0.id == period.id }) {
                         focus.workPeriods[index] = period

@@ -17,7 +17,7 @@ struct AddAppsView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Done") { dismiss() }
+                        Button(role: .close) { dismiss() }
                     }
                 }
         }
@@ -297,7 +297,7 @@ struct TargetEditor: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
             }
-            ToolbarItem(placement: .confirmationAction) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
                     let target = makeTarget(id: original?.id ?? UUID())
                     if original == nil {
@@ -446,7 +446,7 @@ struct ShortcutSetupView: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
             }
-            ToolbarItem(placement: .confirmationAction) {
+            ToolbarItem(placement: .topBarTrailing) {
                 Button("Add") {
                     let target = LaunchTarget(name: app.shortName, method: .shortcut(shortcutName), bundleID: app.bundleId)
                     store.add(target)
