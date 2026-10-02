@@ -24,6 +24,10 @@ struct LaunchTarget: Codable, Hashable, Identifiable {
     var isMindful = false
     /// Hidden apps are only reachable through search.
     var isHidden = false
+    /// The App Store bundle ID, for the app's icon. Catalog apps are looked up by name.
+    var bundleID: String?
+
+    var iconBundleID: String? { bundleID ?? AppCatalog.bundleID(forName: name) }
 
     var url: URL? {
         switch method {

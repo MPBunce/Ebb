@@ -9,7 +9,6 @@ import SwiftUI
 
 struct AddAppsView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var isAddingCustom = false
 
     var body: some View {
         NavigationStack {
@@ -20,12 +19,6 @@ struct AddAppsView: View {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Done") { dismiss() }
                     }
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Custom") { isAddingCustom = true }
-                    }
-                }
-                .sheet(isPresented: $isAddingCustom) {
-                    NavigationStack { TargetEditor(target: nil) }
                 }
         }
     }
@@ -108,7 +101,7 @@ struct CatalogPicker: View {
             Text("An app widget holds \(AppWidgetList.capacity) apps. Remove one, or add this app to another app widget.")
         }
         .sheet(isPresented: $isAddingCustom) {
-            NavigationStack { TargetEditor(target: nil, widgetID: widgetID) }
+            NavigationStack { AppStoreSearchView(widgetID: widgetID) }
         }
     }
 
@@ -243,7 +236,7 @@ struct TargetEditor: View {
         case .website: .website(trimmedValue)
         }
         return LaunchTarget(id: id, name: trimmedName, method: method,
-                            isMindful: isMindful, isHidden: isHidden)
+                            isMindful: isMindful, isHidden: isHidden, bundleID: original?.bundleID)
     }
 
     private var placeholder: String {
@@ -262,6 +255,196 @@ struct TargetEditor: View {
             "Works for any app. In Shortcuts, create a shortcut with the “Open App” action and enter its exact name here. Shortcuts may briefly flash on screen."
         case .website:
             "Opens in your default browser. Handy for using a site instead of its app."
+        }
+    }
+}
+
+/// Search the App Store for an app that isn't in Ebb's list. Ebb adds it in one tap when it
+/// knows the app's launch link, or sets up a Shortcut for it otherwise.
+struct AppStoreSearchView: View {
+    @Environment(LauncherStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    var widgetID: UUID?
+
+    @State private var query = ""
+    @State private var results: [StoreApp] = []
+    @State private var isSearching = false
+    @State private var needsShortcut: StoreApp?
+
+    struct StoreApp: Decodable, Identifiable, Hashable {
+        let trackId: Int
+        let trackName: String
+        let bundleId: String
+        let sellerName: String?
+        let artworkUrl100: String?
+        var id: Int { trackId }
+
+        /// "Spotify: Music and Podcasts" reads as "Spotify" on a widget.
+        var shortName: String {
+            let cut = trackName.split(whereSeparator: { ":–—-|".contains($0) }).first.map(String.init) ?? trackName
+            return cut.trimmingCharacters(in: .whitespaces)
+        }
+    }
+
+    var body: some View {
+        List {
+            if query.isEmpty {
+                Section {
+                    Label("Type an app's name to find it on the App Store.", systemImage: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                } footer: {
+                    Text("Many apps can be added in one tap. For the rest, Ebb helps you set up a Shortcut, which works for any app.")
+                }
+            } else if results.isEmpty && !isSearching {
+                ContentUnavailableView.search(text: query)
+            }
+            ForEach(results) { app in
+                let known = AppCatalog.scheme(forBundleID: app.bundleId) != nil
+                Button {
+                    add(app)
+                } label: {
+                    HStack(spacing: 14) {
+                        AsyncImage(url: app.artworkUrl100.flatMap(URL.init(string:))) { image in
+                            image.resizable().scaledToFill()
+                        } placeholder: {
+                            Color.secondary.opacity(0.15)
+                        }
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(app.shortName).foregroundStyle(.primary)
+                            Text(known ? "Adds in one tap" : "Opens with a Shortcut")
+                                .font(.caption)
+                                .foregroundStyle(known ? Color.green : Color.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            Section {
+                NavigationLink("Add by link or Shortcut instead") {
+                    TargetEditor(target: nil, widgetID: widgetID)
+                }
+            }
+        }
+        .overlay { if isSearching && results.isEmpty { ProgressView() } }
+        .navigationTitle("Find an app")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "App Store")
+        .task(id: query) { await search() }
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Close", systemImage: "xmark") { dismiss() }
+            }
+        }
+        .sheet(item: $needsShortcut) { app in
+            NavigationStack { ShortcutSetupView(app: app, widgetID: widgetID) { dismiss() } }
+        }
+    }
+
+    private func search() async {
+        let term = query.trimmingCharacters(in: .whitespaces)
+        guard term.count >= 2 else { results = []; return }
+        // Wait for typing to pause.
+        try? await Task.sleep(for: .milliseconds(350))
+        guard !Task.isCancelled else { return }
+        isSearching = true
+        defer { isSearching = false }
+        var components = URLComponents(string: "https://itunes.apple.com/search")
+        components?.queryItems = [
+            URLQueryItem(name: "term", value: term),
+            URLQueryItem(name: "entity", value: "software"),
+            URLQueryItem(name: "country", value: Locale.current.region?.identifier ?? "us"),
+            URLQueryItem(name: "limit", value: "15"),
+        ]
+        guard let url = components?.url,
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let decoded = try? JSONDecoder().decode(Response.self, from: data),
+              !Task.isCancelled
+        else { return }
+        results = decoded.results
+    }
+
+    private struct Response: Decodable { let results: [StoreApp] }
+
+    private func add(_ app: StoreApp) {
+        guard let scheme = AppCatalog.scheme(forBundleID: app.bundleId) else {
+            needsShortcut = app
+            return
+        }
+        let target = LaunchTarget(name: app.shortName, method: .urlScheme(scheme), bundleID: app.bundleId)
+        store.add(target)
+        if let widgetID { store.toggle(target.id, in: widgetID) } else { store.addToFirstOpenList(target.id) }
+        dismiss()
+    }
+}
+
+/// Walks through making an "Open App" Shortcut for an app Ebb can't open directly.
+struct ShortcutSetupView: View {
+    @Environment(LauncherStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
+    let app: AppStoreSearchView.StoreApp
+    let widgetID: UUID?
+    let onDone: () -> Void
+
+    @State private var shortcutName: String
+
+    init(app: AppStoreSearchView.StoreApp, widgetID: UUID?, onDone: @escaping () -> Void) {
+        self.app = app
+        self.widgetID = widgetID
+        self.onDone = onDone
+        _shortcutName = State(initialValue: "Open \(app.shortName)")
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Text("\(app.shortName) doesn't share a launch link, so Ebb opens it with a Shortcut. It takes about 20 seconds, once.")
+                    .foregroundStyle(.secondary)
+            }
+            Section("In the Shortcuts app") {
+                StepRow(number: 1, title: "Create a shortcut", detail: "Tap Copy name & open Shortcuts below. A new, empty shortcut opens.")
+                StepRow(number: 2, title: "Add “Open App”", detail: "Search actions for Open App and choose \(app.shortName).")
+                StepRow(number: 3, title: "Name it", detail: "Rename the shortcut to exactly “\(shortcutName)”, then come back here.")
+                Button {
+                    UIPasteboard.general.string = shortcutName
+                    if let url = URL(string: "shortcuts://create-shortcut") { openURL(url) }
+                } label: {
+                    Label("Copy name & open Shortcuts", systemImage: "arrow.up.forward.app")
+                }
+            }
+            Section {
+                TextField("Shortcut name", text: $shortcutName)
+            } header: {
+                Text("Shortcut name")
+            } footer: {
+                Text("Must match the shortcut's name exactly.")
+            }
+        }
+        .navigationTitle(app.shortName)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Add") {
+                    let target = LaunchTarget(name: app.shortName, method: .shortcut(shortcutName), bundleID: app.bundleId)
+                    store.add(target)
+                    if let widgetID { store.toggle(target.id, in: widgetID) } else { store.addToFirstOpenList(target.id) }
+                    dismiss()
+                    onDone()
+                }
+                .disabled(shortcutName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
         }
     }
 }

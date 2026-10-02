@@ -189,6 +189,58 @@ enum AppCatalog {
     /// The App Store bundle ID for an app added from the catalog, if known.
     static func bundleID(forName name: String) -> String? { bundleIDs[name] }
 
+    /// Launch links for more apps, keyed by App Store bundle ID. These can't be checked
+    /// for being installed (iOS caps that at 50), but they open fine once added.
+    static let extraSchemes: [String: String] = [
+        "com.amazon.Amazon": "com.amazon.mobile.shopping://", // Amazon
+        "com.evernote.iPhone.Evernote": "evernote://", // Evernote
+        "com.todoist.ios": "todoist://", // Todoist
+        "com.culturedcode.ThingsiPhone": "things:///", // Things 3
+        "fm.overcast.overcast": "overcast://", // Overcast
+        "au.com.shiftyjelly.podcasts": "pktc://", // Pocket Casts
+        "net.shinyfrog.bear-iOS": "bear://", // Bear
+        "com.agiletortoise.Drafts5": "drafts://", // Drafts
+        "com.flexibits.fantastical2.iphone": "fantastical://", // Fantastical
+        "md.obsidian": "obsidian://", // Obsidian
+        "com.1password.1password": "onepassword://", // 1Password
+        "com.fogcreek.trello": "trello://", // Trello
+        "com.tumblr.tumblr": "tumblr://", // Tumblr
+        "com.vimeo": "vimeo://", // Vimeo
+        "com.soundcloud.TouchApp": "soundcloud://", // SoundCloud
+        "doordash.DoorDashConsumer": "doordash://", // DoorDash
+        "com.robinhood.release.Robinhood": "robinhood://", // Robinhood
+        "com.calm.calmapp": "calm://", // Calm
+        "com.getsomeheadspace.headspace": "headspace://", // Headspace
+        "azdev.citymapper": "citymapper://", // Citymapper
+        "com.samvermette.Transit": "transit://", // Transit
+        "com.google.Translate": "googletranslate://", // Google Translate
+        "com.microsoft.Office.Powerpoint": "ms-powerpoint://", // Microsoft PowerPoint
+        "com.microsoft.onenote": "onenote://", // OneNote
+        "com.viber": "viber://", // Viber
+        "jp.naver.line": "line://", // LINE
+        "com.tencent.xin": "weixin://", // WeChat
+        "com.medium.reader": "medium://", // Medium
+        "com.espn.ScoreCenter": "sportscenter://", // ESPN
+        "com.hulu.plus": "hulu://", // Hulu
+        "com.disney.disneyplus": "disneyplus://", // Disney+
+        "com.amazon.aiv.AIVApp": "aiv://", // Prime Video
+        "com.plexapp.plex": "plex://", // Plex
+        "org.videolan.vlc-ios": "vlc://", // VLC
+        "com.pandora": "pandora://", // Pandora
+        "com.deezer.Deezer": "deezer://", // Deezer
+        "com.aspiro.TIDAL": "tidal://", // TIDAL
+        "com.asana.Asana": "asana://", // Asana
+    ]
+
+    /// The launch link for an App Store app, if Ebb knows it.
+    static func scheme(forBundleID bundleID: String) -> String? {
+        if let name = bundleIDs.first(where: { $0.value == bundleID })?.key,
+           let app = apps.first(where: { $0.name == name }) {
+            return app.scheme
+        }
+        return extraSchemes[bundleID]
+    }
+
     /// A sensible first-run home screen.
     static let starterNames: Set<String> = ["Phone", "Messages", "Calendar", "Maps", "Music", "Notes"]
 }

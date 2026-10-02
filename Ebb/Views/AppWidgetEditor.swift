@@ -61,7 +61,7 @@ struct AppWidgetEditor: View {
                             store.toggle(app.id, in: listID)
                         } label: {
                             HStack(spacing: 14) {
-                                AppIconView(name: app.name)
+                                AppIconView(name: app.name, bundleID: app.iconBundleID)
                                     .opacity(list.isFull ? 0.5 : 1)
                                 Text(app.name)
                                     .foregroundStyle(list.isFull ? .secondary : .primary)

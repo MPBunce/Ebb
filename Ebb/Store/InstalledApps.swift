@@ -51,7 +51,7 @@ struct AppRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            AppIconView(name: target.name)
+            AppIconView(name: target.name, bundleID: target.iconBundleID)
             VStack(alignment: .leading, spacing: 3) {
                 Text(target.name)
                     .font(.body)

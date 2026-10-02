@@ -69,10 +69,11 @@ final class AppIcons {
 struct AppIconView: View {
     @Environment(AppIcons.self) private var icons
     let name: String
+    var bundleID: String?
     var size: CGFloat = 34
 
     var body: some View {
-        if let bundleID = AppCatalog.bundleID(forName: name), let image = icons.image(for: bundleID) {
+        if let bundleID = bundleID ?? AppCatalog.bundleID(forName: name), let image = icons.image(for: bundleID) {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFill()
