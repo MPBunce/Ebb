@@ -365,3 +365,20 @@ struct StoreNameTests {
         #expect(app("Spotify: Music and Podcasts").shortName(matching: "spot") == "Spotify")
     }
 }
+
+@MainActor
+struct WidgetCalibrationTests {
+    @Test func paperIsCalibratedFromTheMeasuredScreenshot() throws {
+        let paper = HexColor(hex: "#F3EFE6")!
+        // Measured on an iPhone: wallpaper (239, 238, 231), untuned widget (243, 242, 233).
+        let measurement = WallpaperMatcher.Measurement(
+            widget: HexColor(red: 243 / 255, green: 242 / 255, blue: 233 / 255),
+            wallpaper: HexColor(red: 239 / 255, green: 238 / 255, blue: 231 / 255)
+        )
+        let computed = WallpaperMatcher.widgetColor(current: paper, measurement: measurement)
+        let builtIn = try #require(WidgetTuning.builtIn[paper.hex].flatMap(HexColor.init(hex:)))
+        #expect(abs(computed.red - builtIn.red) * 255 < 1.5)
+        #expect(abs(computed.green - builtIn.green) * 255 < 1.5)
+        #expect(abs(computed.blue - builtIn.blue) * 255 < 1.5)
+    }
+}

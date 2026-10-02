@@ -34,6 +34,7 @@ final class LauncherStore {
     init(directory: URL = AppGroup.containerURL.appending(path: "Ebb", directoryHint: .isDirectory)) {
         self.directory = directory
         TimeSaved.markInstallIfNeeded()
+        WidgetTuning.applyCalibrationUpdate()
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         targets = Self.read([LaunchTarget].self, from: targetsURL) ?? []
         events = Self.read([LaunchEvent].self, from: eventsURL) ?? []

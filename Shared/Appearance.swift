@@ -194,9 +194,28 @@ nonisolated enum WidgetStyle {
 nonisolated enum WidgetTuning {
     private static let key = "widgetTuning"
 
+    /// Calibrations measured on an iPhone for the built-in light wallpapers, so they blend
+    /// out of the box. iOS lightens widgets and slightly darkens photo wallpapers in light
+    /// mode; these widget colors land on the wallpaper's on-screen color.
+    static let builtIn: [String: String] = [
+        // Paper: wallpaper renders (239, 238, 231); untuned widgets rendered (243, 242, 233).
+        "#F3EFE6": "#EFECE4",
+    ]
+
     static func widgetColor(for background: HexColor) -> HexColor {
         let stored = AppGroup.defaults.dictionary(forKey: key) as? [String: String] ?? [:]
-        return stored[background.hex].flatMap(HexColor.init(hex:)) ?? background
+        let hex = stored[background.hex] ?? builtIn[background.hex]
+        return hex.flatMap(HexColor.init(hex:)) ?? background
+    }
+
+    /// Clears earlier manual tuning for colors that now have a built-in calibration.
+    static func applyCalibrationUpdate() {
+        let versionKey = "widgetCalibrationVersion"
+        guard AppGroup.defaults.integer(forKey: versionKey) < 1 else { return }
+        var stored = AppGroup.defaults.dictionary(forKey: key) as? [String: String] ?? [:]
+        for color in builtIn.keys { stored[color] = nil }
+        AppGroup.defaults.set(stored, forKey: key)
+        AppGroup.defaults.set(1, forKey: versionKey)
     }
 
     static func setWidgetColor(_ color: HexColor?, for background: HexColor) {
