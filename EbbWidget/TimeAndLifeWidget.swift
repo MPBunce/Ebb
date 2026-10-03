@@ -3,8 +3,8 @@
 //  EbbWidget
 //
 //  Ebb Plus: one large widget with the time Ebb has given back and the life you have
-//  left. Sized for the Today View (swipe right on the first Home Screen page), and
-//  extra large on iPad.
+//  left. Sized for the Today View (swipe right on the first Home Screen page): large,
+//  or extra large portrait from iOS 27, and extra large on iPad.
 //
 
 import SwiftUI
@@ -33,6 +33,14 @@ struct TimeAndLifeWidgetView: View {
 
     private var isExtraLarge: Bool { family == .systemExtraLarge }
 
+    /// The tall iOS 27 size: same layout as Large, with more room.
+    private var isTall: Bool {
+        if #available(iOS 27.0, *) { return family == .systemExtraLargePortrait }
+        return false
+    }
+
+    private var heroSize: CGFloat { isExtraLarge ? 84 : isTall ? 96 : 64 }
+
     var body: some View {
         Group {
             if !EbbPlus.isActive {
@@ -53,7 +61,7 @@ struct TimeAndLifeWidgetView: View {
                 }
             }
         }
-        .padding(isExtraLarge ? 24 : 18)
+        .padding(isExtraLarge || isTall ? 24 : 18)
         .ebbWidgetStyle()
         .widgetURL(DeepLink.home.url)
     }
@@ -67,7 +75,7 @@ struct TimeAndLifeWidgetView: View {
             Caption(text: "time given back")
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(amount.value)
-                    .font(.system(size: isExtraLarge ? 84 : 64, weight: .thin))
+                    .font(.system(size: heroSize, weight: .thin))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.4)
@@ -120,7 +128,7 @@ struct TimeAndLifeWidgetView: View {
                 Caption(text: span.isExtraTime ? "extra time" : "life left")
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text((span.isExtraTime ? "+" : "") + span.years.formatted())
-                        .font(.system(size: isExtraLarge ? 84 : 64, weight: .thin))
+                        .font(.system(size: heroSize, weight: .thin))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)
@@ -162,13 +170,22 @@ struct TimeAndLifeWidgetView: View {
 }
 
 struct TimeAndLifeWidget: Widget {
+    /// Large on iPhone, plus the taller Extra Large Portrait from iOS 27 (drag the
+    /// widget's corner down in the Today View); Extra Large on iPad.
+    private static var families: [WidgetFamily] {
+        if #available(iOS 27.0, *) {
+            return [.systemLarge, .systemExtraLarge, .systemExtraLargePortrait]
+        }
+        return [.systemLarge, .systemExtraLarge]
+    }
+
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "EbbTimeAndLife", provider: TimeAndLifeProvider()) { entry in
             TimeAndLifeWidgetView(entry: entry)
         }
         .configurationDisplayName("Time & Life")
         .description("Time Ebb has given back, and the life you have left. Made for the Today View. Ebb Plus.")
-        .supportedFamilies([.systemLarge, .systemExtraLarge])
+        .supportedFamilies(Self.families)
         .contentMarginsDisabled()
     }
 }
