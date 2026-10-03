@@ -27,6 +27,13 @@ struct SettingsView: View {
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets())
 
+                Section {
+                    NavigationLink { EbbPlusView() } label: {
+                        SettingsRow(icon: "sparkles", tint: .yellow, title: "Ebb Plus",
+                                    subtitle: EbbPlus.isActive ? "Unlocked" : "More app widgets and clock styles")
+                    }
+                }
+
                 Section("Set up") {
                     NavigationLink { HelpView() } label: {
                         SettingsRow(icon: "questionmark", tint: .green, title: "Help & Setup",
@@ -64,13 +71,6 @@ struct SettingsView: View {
                     Button { switchTo(.insights) } label: {
                         SettingsRow(icon: "chart.bar.fill", tint: .green, title: "Insights",
                                     subtitle: "Opens, let-gos, and time given back", showsChevron: true)
-                    }
-                }
-
-                Section {
-                    NavigationLink { EbbPlusView() } label: {
-                        SettingsRow(icon: "sparkles", tint: .yellow, title: "Ebb Plus",
-                                    subtitle: "More app widgets and clock styles. Coming soon")
                     }
                 }
 
