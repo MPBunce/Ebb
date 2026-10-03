@@ -143,6 +143,18 @@ struct DashboardView: View {
         if router.sheet == nil, let sheet = HomeSheet(rawValue: savedSheet) {
             router.sheet = sheet
         }
+        #if DEBUG
+        // Screenshot launch option: `-EbbScreen widgets|apps|colors|help|settings|plus`.
+        if let screen = UserDefaults.standard.string(forKey: "EbbScreen") {
+            if let route = DashboardRoute(rawValue: screen) {
+                path = [route]
+            } else if screen == "plus" {
+                router.sheet = .settings
+            } else if let sheet = HomeSheet(rawValue: screen) {
+                router.sheet = sheet
+            }
+        }
+        #endif
     }
 
     private var todaySection: some View {

@@ -15,6 +15,12 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showWalkthrough = false
+    #if DEBUG
+    /// Screenshot launch option `-EbbScreen plus` opens Ebb Plus inside Settings.
+    @State private var showPlus = UserDefaults.standard.string(forKey: "EbbScreen") == "plus"
+    #else
+    @State private var showPlus = false
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -82,6 +88,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .navigationDestination(isPresented: $showPlus) { EbbPlusView() }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
