@@ -19,16 +19,27 @@ struct CatalogApp: Hashable, Identifiable {
     }
 
     var name: String
-    var scheme: String
+    /// The app's launch link, or nil for apps iOS gives no link (Camera, Clock…), which
+    /// open through an "Open App" Shortcut instead.
+    var scheme: String?
     var category: Category
 
     var id: String { name }
 
+    var bundleID: String? { AppCatalog.bundleID(forName: name) }
+
+    /// Opens through a Shortcut the user makes once, because the app has no launch link.
+    var needsShortcut: Bool { scheme == nil }
+
     /// Social and endless-feed apps get a mindful pause by default.
     var suggestsPause: Bool { category == .social }
 
+    /// The name Ebb suggests for this app's "Open App" shortcut.
+    var shortcutName: String { "Open \(name)" }
+
     func makeTarget() -> LaunchTarget {
-        LaunchTarget(name: name, method: .urlScheme(scheme), isMindful: suggestsPause)
+        let method: LaunchTarget.Method = scheme.map { .urlScheme($0) } ?? .shortcut(shortcutName)
+        return LaunchTarget(name: name, method: method, isMindful: suggestsPause, bundleID: bundleID)
     }
 }
 
@@ -53,6 +64,11 @@ enum AppCatalog {
         .init(name: "Books", scheme: "ibooks://", category: .essentials),
         .init(name: "App Store", scheme: "itms-apps://", category: .essentials),
         .init(name: "Shortcuts", scheme: "shortcuts://", category: .essentials),
+        // Built-in apps iOS gives no launch link; these open with an "Open App" Shortcut.
+        .init(name: "Camera", scheme: nil, category: .essentials),
+        .init(name: "Clock", scheme: nil, category: .essentials),
+        .init(name: "Calculator", scheme: nil, category: .essentials),
+        .init(name: "Settings", scheme: nil, category: .essentials),
 
         // Communication
         .init(name: "WhatsApp", scheme: "whatsapp://", category: .communication),
@@ -118,6 +134,11 @@ enum AppCatalog {
     /// App Store bundle IDs, used to fetch each app's official icon.
     static let bundleIDs: [String: String] = [
         "Phone": "com.apple.mobilephone",
+        "App Store": "com.apple.AppStore",
+        "Camera": "com.apple.camera",
+        "Clock": "com.apple.mobiletimer",
+        "Calculator": "com.apple.calculator",
+        "Settings": "com.apple.Preferences",
         "Messages": "com.apple.MobileSMS",
         "Mail": "com.apple.mobilemail",
         "Safari": "com.apple.mobilesafari",

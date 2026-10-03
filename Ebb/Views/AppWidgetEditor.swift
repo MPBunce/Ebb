@@ -15,13 +15,13 @@ struct AppWidgetEditor: View {
 
     @State private var name = ""
     @State private var confirmDelete = false
+    @State private var isAdding = false
 
     private var list: AppWidgetList? { store.lists.first { $0.id == listID } }
 
     var body: some View {
         if let list {
             let apps = store.apps(in: list)
-            let others = store.library(matching: "").filter { !list.appIDs.contains($0.id) }
 
             List {
                 Section {
@@ -40,7 +40,7 @@ struct AppWidgetEditor: View {
                         offsets.map { apps[$0].id }.forEach { store.toggle($0, in: listID) }
                     }
                     if apps.isEmpty {
-                        Text("No apps yet. Add some below.")
+                        Text("No apps yet.")
                             .foregroundStyle(.secondary)
                     }
                 } header: {
@@ -50,40 +50,16 @@ struct AppWidgetEditor: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        CatalogPicker(widgetID: listID)
-                            .navigationTitle("Add to \(list.name)")
-                            .navigationBarTitleDisplayMode(.inline)
+                    Button {
+                        isAdding = true
                     } label: {
                         Label("Add apps", systemImage: "plus.circle.fill")
+                            .font(.body.weight(.semibold))
                     }
-                    ForEach(others) { app in
-                        Button {
-                            store.toggle(app.id, in: listID)
-                        } label: {
-                            HStack(spacing: 14) {
-                                AppIconView(name: app.name, bundleID: app.iconBundleID)
-                                    .opacity(list.isFull ? 0.5 : 1)
-                                Text(app.name)
-                                    .foregroundStyle(list.isFull ? .secondary : .primary)
-                                Spacer()
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(list.isFull ? Color.secondary.opacity(0.4) : Color.accentColor)
-                            }
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(list.isFull)
-                    }
-                } header: {
-                    Text("Add apps")
+                    .disabled(list.isFull)
                 } footer: {
                     if list.isFull {
                         Text("This widget is full. Remove an app, or put more apps on another app widget.")
-                    } else if !others.isEmpty {
-                        Text("Apps you've added to Ebb but not to this widget.")
                     }
                 }
 
@@ -98,6 +74,7 @@ struct AppWidgetEditor: View {
                 if !apps.isEmpty { EditButton() }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $isAdding) { AddAppsView(widgetID: listID) }
             .onAppear { name = list.name }
             .onDisappear { store.renameList(listID, to: name) }
             .confirmationDialog("Delete \(list.name)?", isPresented: $confirmDelete, titleVisibility: .visible) {

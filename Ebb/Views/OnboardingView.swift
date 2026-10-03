@@ -109,8 +109,7 @@ struct OnboardingView: View {
     private func seedStarterApps() {
         guard store.targets.isEmpty else { return }
         for app in AppCatalog.apps where AppCatalog.starterNames.contains(app.name) {
-            let target = app.makeTarget()
-            store.add(target)
+            let target = store.add(app.makeTarget())
             store.addToFirstOpenList(target.id)
         }
     }
@@ -282,12 +281,12 @@ private struct AppsPage: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Choose your apps")
                     .font(.largeTitle.weight(.light))
-                Text("Tap to add. We've started you with a few essentials. Apps not listed can be added later with a Shortcut, which works for any app.")
+                Text("Tap to add or remove. We've started you with a few essentials, and you can search for any app.")
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 24)
             .padding(.top, 28)
-            CatalogPicker(addsToHome: true)
+            AppPicker(addsImmediately: true)
         }
     }
 }

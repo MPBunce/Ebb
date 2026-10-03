@@ -144,10 +144,12 @@ struct DashboardView: View {
             router.sheet = sheet
         }
         #if DEBUG
-        // Screenshot launch option: `-EbbScreen widgets|apps|colors|help|settings|plus`.
+        // Screenshot launch option: `-EbbScreen widgets|apps|add|colors|help|settings|plus`.
         if let screen = UserDefaults.standard.string(forKey: "EbbScreen") {
             if let route = DashboardRoute(rawValue: screen) {
                 path = [route]
+            } else if screen == "add" {
+                path = [.apps]
             } else if screen == "plus" {
                 router.sheet = .settings
             } else if let sheet = HomeSheet(rawValue: screen) {

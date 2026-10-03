@@ -2,132 +2,335 @@
 //  AddAppsView.swift
 //  Ebb
 //
-//  Pick apps from the catalog, or add anything else with a URL scheme, Shortcut, or website.
+//  The one place apps are added: search, pick, and they go straight onto a widget.
+//  Also the manual link/Shortcut editor and the "Open App" Shortcut walkthrough.
 //
 
 import SwiftUI
 
+/// One app the picker can offer: from Ebb's list of known apps, already added, or the App Store.
+struct PickerApp: Identifiable, Hashable {
+    var name: String
+    var bundleID: String?
+    /// The launch link. Nil means it opens through an "Open App" Shortcut.
+    var scheme: String?
+    var artworkURL: URL?
+    var suggestsPause = false
+
+    var id: String { bundleID?.lowercased() ?? "name:" + name.lowercased() }
+    var needsShortcut: Bool { scheme == nil }
+    var shortcutName: String { "Open \(name)" }
+
+    init(_ app: CatalogApp) {
+        name = app.name
+        bundleID = app.bundleID
+        scheme = app.scheme
+        suggestsPause = app.suggestsPause
+    }
+
+    init(_ app: AppStoreSearchView.StoreApp, query: String) {
+        name = app.shortName(matching: query)
+        bundleID = app.bundleId
+        scheme = AppCatalog.scheme(forBundleID: app.bundleId)
+        artworkURL = app.artworkUrl100.flatMap(URL.init(string:))
+    }
+
+    init(_ target: LaunchTarget) {
+        name = target.name
+        bundleID = target.iconBundleID
+        // Already set up, however it opens, so it never needs a new Shortcut.
+        if case .urlScheme(let scheme) = target.method { self.scheme = scheme } else { scheme = "" }
+    }
+
+    func makeTarget() -> LaunchTarget {
+        let method: LaunchTarget.Method = scheme.map { .urlScheme($0) } ?? .shortcut(shortcutName)
+        return LaunchTarget(name: name, method: method, isMindful: suggestsPause, bundleID: bundleID)
+    }
+}
+
+/// Settings › Apps › Add apps, and a widget's Add apps: one sheet for adding apps everywhere.
 struct AddAppsView: View {
+    /// The app widget picked apps go on. Nil puts them on the first widgets with room.
+    var widgetID: UUID?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            CatalogPicker()
-                .navigationTitle("Add apps")
-                .navigationBarTitleDisplayMode(.inline)
+            AppPicker(widgetID: widgetID) { dismiss() }
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .close) { dismiss() }
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") { dismiss() }
                     }
                 }
         }
     }
 }
 
-/// Tap-to-toggle list of known apps. Used by Add Apps and onboarding.
-struct CatalogPicker: View {
+/// Search and pick apps. Apps on this iPhone come first, then App Store results.
+/// In a sheet, picks wait for the Add button; during onboarding they apply straight away.
+struct AppPicker: View {
     @Environment(LauncherStore.self) private var store
+    var widgetID: UUID?
+    /// Onboarding: tapping adds or removes an app at once, with no Add button.
+    var addsImmediately = false
+    var onDone: () -> Void = {}
+
     @State private var query = ""
-    @State private var showFull = false
+    @State private var selection: [PickerApp] = []
     @State private var storeResults: [AppStoreSearchView.StoreApp] = []
     @State private var isSearchingStore = false
-    @State private var needsShortcut: AppStoreSearchView.StoreApp?
-    @State private var isAddingManually = false
     @State private var installed: [CatalogApp] = []
-    var addsToHome = false
-    /// When set, tapping an app puts it on (or takes it off) this app widget.
-    var widgetID: UUID?
+    @State private var fullMessage = false
+    @State private var shortcutQueue: [PickerApp] = []
+    @State private var settingUpShortcut: PickerApp?
+    @State private var isAddingManually = false
 
     private var widget: AppWidgetList? { widgetID.flatMap { id in store.lists.first { $0.id == id } } }
 
-    private func isChecked(_ app: CatalogApp) -> Bool {
-        guard let target = store.targets.first(where: { $0.name == app.name }) else { return false }
-        if let widget { return widget.appIDs.contains(target.id) }
-        return true
-    }
+    // MARK: What's shown
 
-    private var grouped: [(String, [CatalogApp])] {
-        let apps = query.isEmpty
-            ? AppCatalog.apps
-            : AppCatalog.apps.filter { $0.name.localizedStandardContains(query) }
-        // Third-party apps found on this iPhone come first.
-        let found = apps.filter { app in app.category != .essentials && installed.contains(app) }
-        let rest = CatalogApp.Category.allCases.compactMap { category -> (String, [CatalogApp])? in
-            let matches = apps.filter { $0.category == category && !found.contains($0) }
-            return matches.isEmpty ? nil : (category.rawValue, matches)
+    private func status(of app: PickerApp) -> AppPickerStatus {
+        guard let target = store.existing(name: app.name, bundleID: app.bundleID) else { return .available }
+        if let widget {
+            return widget.appIDs.contains(target.id) ? .added("On this widget") : .unplaced
         }
-        return (found.isEmpty ? [] : [("On this iPhone", found)]) + rest
+        let names = store.widgetNames(for: target.id)
+        return names.isEmpty ? .unplaced : .added("On \(names.joined(separator: ", "))")
     }
 
-    /// App Store results that aren't already shown from Ebb's own list.
-    private var extraStoreResults: [AppStoreSearchView.StoreApp] {
-        let known = Set(AppCatalog.bundleIDs.values)
-        return storeResults.filter { !known.contains($0.bundleId) }
+    private func isSelected(_ app: PickerApp) -> Bool {
+        // Onboarding applies taps at once, so "selected" means "added".
+        if addsImmediately { return store.existing(name: app.name, bundleID: app.bundleID) != nil }
+        return selection.contains { $0.id == app.id }
+    }
+
+    /// Apps already in Ebb that aren't on this widget (or on any widget).
+    private var unplacedApps: [PickerApp] {
+        store.targets
+            .filter { target in widget.map { !$0.appIDs.contains(target.id) } ?? store.widgetNames(for: target.id).isEmpty }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            .map(PickerApp.init)
+    }
+
+    private var installedThirdParty: [PickerApp] {
+        listedOnce(installed.filter { $0.category != .essentials })
+    }
+
+    private var appleApps: [PickerApp] {
+        listedOnce(AppCatalog.apps.filter { $0.category == .essentials })
+    }
+
+    /// Catalog apps, alphabetical, minus any already shown in "Added, not on a widget".
+    private func listedOnce(_ apps: [CatalogApp]) -> [PickerApp] {
+        let shown = addsImmediately ? [] : Set(unplacedApps.map(\.name))
+        return apps
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            .map(PickerApp.init)
+            .filter { app in
+                guard let target = store.existing(name: app.name, bundleID: app.bundleID) else { return true }
+                return !shown.contains(target.name)
+            }
+    }
+
+    /// Search: matching apps from Ebb's list (installed first), then the App Store, without repeats.
+    private var searchResults: [PickerApp] {
+        let catalog = AppCatalog.apps
+            .filter { $0.name.localizedStandardContains(query) }
+            .sorted { lhs, rhs in installed.contains(lhs) && !installed.contains(rhs) }
+            .map(PickerApp.init)
+        var seen = Set(catalog.map(\.id))
+        let fromStore = storeResults.map { PickerApp($0, query: query) }.filter { seen.insert($0.id).inserted }
+        return catalog + fromStore
+    }
+
+    /// Spots left where picked apps will go.
+    private var freeSlots: Int {
+        if let widget { return AppWidgetList.capacity - widget.appIDs.count }
+        return store.freeWidgetSlots
+    }
+
+    /// Where the picked apps will end up, under the Add button.
+    private var destinationDetail: String {
+        if freeSlots >= selection.count { return "to \(destinationName)" }
+        if freeSlots == 0 { return selection.count == 1 ? "Your widgets are full, so it'll go in Apps" : "Your widgets are full, so they'll go in Apps" }
+        return "\(freeSlots) fit on your widgets; the rest go in Apps"
+    }
+
+    private var destinationName: String {
+        if let widget { return widget.name }
+        return store.lists.prefix(store.maxLists).first { !$0.isFull }?.name ?? "your widgets"
     }
 
     var body: some View {
         List {
-            ForEach(grouped, id: \.0) { title, apps in
-                Section(title) {
-                    ForEach(apps) { app in
-                        Button {
-                            toggle(app)
-                        } label: {
-                            HStack(spacing: 14) {
-                                AppIconView(name: app.name)
-                                Text(app.name)
-                                Spacer()
-                                Image(systemName: isChecked(app) ? "checkmark.circle.fill" : "plus.circle")
-                                    .font(.title3)
-                                    .foregroundStyle(isChecked(app) ? Color.accentColor : Color.secondary)
-                                    .accessibilityLabel(isChecked(app) ? "Added" : "Add")
-                            }
-                            .padding(.vertical, 2)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
+            if query.isEmpty {
+                if !addsImmediately && !unplacedApps.isEmpty {
+                    section(widget == nil ? "Added, not on a widget" : "Already in Ebb", unplacedApps)
                 }
-            }
-
-            if !query.isEmpty {
-                Section {
-                    if isSearchingStore && extraStoreResults.isEmpty {
-                        HStack { Spacer(); ProgressView(); Spacer() }
-                    }
-                    ForEach(extraStoreResults) { app in
-                        StoreAppRow(app: app, query: query) { addFromStore(app) }
-                    }
-                } header: {
-                    Text("More on the App Store")
-                } footer: {
-                    if !isSearchingStore && extraStoreResults.isEmpty && grouped.isEmpty {
-                        Text("No apps found for “\(query)”.")
-                    }
+                if !installedThirdParty.isEmpty {
+                    section("On this iPhone", installedThirdParty)
+                }
+                section("Apple apps", appleApps)
+            } else {
+                if !searchResults.isEmpty {
+                    section("Results", searchResults)
+                }
+                if isSearchingStore {
+                    HStack { Spacer(); ProgressView(); Spacer() }
+                        .listRowBackground(Color.clear)
+                } else if searchResults.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                        .listRowBackground(Color.clear)
                 }
             }
 
             Section {
-                Button("Add by link or Shortcut") { isAddingManually = true }
+                Button {
+                    isAddingManually = true
+                } label: {
+                    Label("Add with a link or Shortcut", systemImage: "link")
+                }
+            } header: {
+                Text("Can't find an app?")
             } footer: {
                 Text(query.isEmpty
-                     ? "Search to find any app on the App Store. iPhone doesn't let Ebb see which apps you have."
-                     : "Can't find it? Add any app with a Shortcut.")
+                     ? "Search for any app on the App Store. iPhone only lets Ebb check for some apps, so yours may not be listed until you search."
+                     : "A Shortcut with the Open App action works for every app.")
             }
         }
-        .searchable(text: $query, prompt: "Search apps")
+        .navigationTitle(widget.map { "Add to \($0.name)" } ?? "Add apps")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search apps")
         .task(id: query) { await searchStore() }
         .onAppear { installed = InstalledApps.detect() }
-        .alert("This widget is full", isPresented: $showFull) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("An app widget holds \(AppWidgetList.capacity) apps. Remove one, or add this app to another app widget.")
+        .safeAreaInset(edge: .bottom) {
+            if !addsImmediately { addBar }
         }
-        .sheet(item: $needsShortcut) { app in
-            NavigationStack { ShortcutSetupView(app: app, widgetID: widgetID) {} }
+        .sheet(item: $settingUpShortcut) { app in
+            NavigationStack {
+                ShortcutSetupView(name: app.name, bundleID: app.bundleID, shortcutName: app.shortcutName) { shortcut in
+                    if let shortcut {
+                        var target = app.makeTarget()
+                        target.method = .shortcut(shortcut)
+                        place(store.add(target))
+                    }
+                    nextShortcut()
+                }
+            }
+            // A fresh screen per app, so the suggested name doesn't carry over.
+            .id(app.id)
+            .interactiveDismissDisabled()
         }
         .sheet(isPresented: $isAddingManually) {
             NavigationStack { TargetEditor(target: nil, widgetID: widgetID) }
+        }
+    }
+
+    private func section(_ title: String, _ apps: [PickerApp]) -> some View {
+        Section(title) {
+            ForEach(apps) { app in
+                PickerRow(app: app, status: addsImmediately ? .available : status(of: app),
+                          isSelected: isSelected(app)) { tap(app) }
+            }
+        }
+    }
+
+    private var addBar: some View {
+        VStack(spacing: 6) {
+            if fullMessage {
+                Text(widget == nil ? "Your app widgets are full" : "\(destinationName) is full: an app widget holds \(AppWidgetList.capacity) apps")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            Button(action: commit) {
+                VStack(spacing: 2) {
+                    Text(selection.isEmpty ? "Pick apps to add" : selection.count == 1 ? "Add 1 app" : "Add \(selection.count) apps")
+                        .font(.headline)
+                    if !selection.isEmpty {
+                        Text(destinationDetail)
+                            .font(.caption)
+                            .opacity(0.75)
+                    }
+                }
+            }
+            .buttonStyle(CapsuleButtonStyle())
+            .disabled(selection.isEmpty)
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+        .animation(.default, value: fullMessage)
+    }
+
+    // MARK: Actions
+
+    private func tap(_ app: PickerApp) {
+        if addsImmediately {
+            toggleNow(app)
+            return
+        }
+        if let index = selection.firstIndex(where: { $0.id == app.id }) {
+            selection.remove(at: index)
+            fullMessage = false
+            return
+        }
+        // Only a specific widget has a hard limit; apps past "your widgets" still join your apps.
+        if widget != nil && selection.count >= freeSlots {
+            fullMessage = true
+            return
+        }
+        selection.append(app)
+    }
+
+    /// Onboarding: add (or take off) right away.
+    private func toggleNow(_ app: PickerApp) {
+        if let target = store.existing(name: app.name, bundleID: app.bundleID) {
+            store.remove(target)
+        } else if app.needsShortcut {
+            shortcutQueue = [app]
+            nextShortcut()
+        } else {
+            place(store.add(app.makeTarget()))
+        }
+    }
+
+    private func commit() {
+        var needsShortcuts: [PickerApp] = []
+        for app in selection {
+            if let target = store.existing(name: app.name, bundleID: app.bundleID) {
+                place(target)
+            } else if app.needsShortcut {
+                needsShortcuts.append(app)
+            } else {
+                place(store.add(app.makeTarget()))
+            }
+        }
+        selection = []
+        shortcutQueue = needsShortcuts
+        nextShortcut()
+    }
+
+    /// Shows the next app that needs a Shortcut, or finishes.
+    private func nextShortcut() {
+        guard !shortcutQueue.isEmpty else {
+            settingUpShortcut = nil
+            if !addsImmediately { onDone() }
+            return
+        }
+        let next = shortcutQueue.removeFirst()
+        // Wait for the list (or the previous sheet) to settle, or the sheet may not show.
+        let delay = settingUpShortcut == nil ? 150 : 450
+        settingUpShortcut = nil
+        Task {
+            try? await Task.sleep(for: .milliseconds(delay))
+            settingUpShortcut = next
+        }
+    }
+
+    private func place(_ target: LaunchTarget) {
+        if let widgetID {
+            if widget?.appIDs.contains(target.id) == false { store.toggle(target.id, in: widgetID) }
+        } else {
+            store.addToFirstOpenList(target.id)
         }
     }
 
@@ -142,78 +345,103 @@ struct CatalogPicker: View {
         guard !Task.isCancelled else { return }
         storeResults = results
     }
+}
 
-    private func addFromStore(_ app: AppStoreSearchView.StoreApp) {
-        guard let scheme = AppCatalog.scheme(forBundleID: app.bundleId) else {
-            needsShortcut = app
-            return
-        }
-        if let widget, widget.isFull {
-            showFull = true
-            return
-        }
-        let target = LaunchTarget(name: app.shortName(matching: query), method: .urlScheme(scheme), bundleID: app.bundleId)
-        store.add(target)
-        if let widgetID { store.toggle(target.id, in: widgetID) } else if addsToHome { store.addToFirstOpenList(target.id) }
-        storeResults.removeAll { $0.id == app.id }
-    }
+/// A full-width capsule in the text color, so it reads in every Ebb color theme
+/// (the accent color is the text color, which makes the system prominent style unreadable).
+struct CapsuleButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
 
-    private func toggle(_ app: CatalogApp) {
-        if let widget {
-            let target = store.targets.first(where: { $0.name == app.name }) ?? {
-                let new = app.makeTarget()
-                store.add(new)
-                return new
-            }()
-            if !widget.appIDs.contains(target.id) && widget.isFull {
-                showFull = true
-                return
-            }
-            store.toggle(target.id, in: widget.id)
-            return
-        }
-        if let existing = store.targets.first(where: { $0.name == app.name }) {
-            store.remove(existing)
-        } else {
-            let target = app.makeTarget()
-            store.add(target)
-            if addsToHome { store.addToFirstOpenList(target.id) }
-        }
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(isEnabled ? Color(.systemBackground) : Color.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(Capsule().fill(isEnabled ? AnyShapeStyle(Color.primary) : AnyShapeStyle(.regularMaterial)))
+            .contentShape(Capsule())
+            .opacity(configuration.isPressed ? 0.75 : 1)
     }
 }
 
-/// One App Store search result.
-struct StoreAppRow: View {
-    let app: AppStoreSearchView.StoreApp
-    var query = ""
+/// Whether an app in the picker can be added.
+enum AppPickerStatus {
+    case available
+    /// Already where it would go; the text says where.
+    case added(String)
+    /// In Ebb, but not on this widget (or any widget).
+    case unplaced
+
+    var isAdded: Bool { if case .added = self { true } else { false } }
+}
+
+/// One app in the picker: icon, name, what happens if you add it, and a selection circle.
+private struct PickerRow: View {
+    let app: PickerApp
+    let status: AppPickerStatus
+    let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
-        let known = AppCatalog.scheme(forBundleID: app.bundleId) != nil
         Button(action: action) {
             HStack(spacing: 14) {
-                AsyncImage(url: app.artworkUrl100.flatMap(URL.init(string:))) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Color.secondary.opacity(0.15)
-                }
-                .frame(width: 34, height: 34)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                icon
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(app.shortName(matching: query)).foregroundStyle(.primary).lineLimit(1)
-                    Text(known ? "Adds in one tap" : "Opens with a Shortcut")
-                        .font(.caption)
-                        .foregroundStyle(known ? Color.green : Color.secondary)
+                    Text(app.name)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    if let detail {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
-                Spacer()
-                Image(systemName: "plus.circle")
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                indicator
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 3)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(status.isAdded)
+        .accessibilityAddTraits(isSelected || status.isAdded ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var icon: some View {
+        if let artworkURL = app.artworkURL {
+            AsyncImage(url: artworkURL) { image in
+                image.resizable().scaledToFill()
+            } placeholder: {
+                Color.secondary.opacity(0.15)
+            }
+            .frame(width: 40, height: 40)
+            .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        } else {
+            AppIconView(name: app.name, bundleID: app.bundleID, size: 40)
+        }
+    }
+
+    private var detail: String? {
+        switch status {
+        case .added(let text): return text
+        case .unplaced: return nil
+        case .available: return app.needsShortcut ? "Opens with a quick Shortcut" : nil
+        }
+    }
+
+    @ViewBuilder
+    private var indicator: some View {
+        if status.isAdded {
+            Image(systemName: "checkmark")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.secondary)
+        } else {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .font(.title2)
+                .foregroundStyle(isSelected ? Color.primary : Color.secondary.opacity(0.5))
+                .contentTransition(.symbolEffect(.replace))
+        }
     }
 }
 
@@ -299,11 +527,20 @@ struct TargetEditor: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Save") {
-                    let target = makeTarget(id: original?.id ?? UUID())
+                    var target = makeTarget(id: original?.id ?? UUID())
                     if original == nil {
-                        store.add(target)
+                        // Adding an app Ebb already has updates how it opens instead of adding it twice.
+                        if let match = store.existing(name: target.name, bundleID: nil) {
+                            target.id = match.id
+                            target.bundleID = match.bundleID
+                            store.update(target)
+                        } else {
+                            store.add(target)
+                        }
                         if let widgetID {
-                            store.toggle(target.id, in: widgetID)
+                            if store.lists.first(where: { $0.id == widgetID })?.appIDs.contains(target.id) == false {
+                                store.toggle(target.id, in: widgetID)
+                            }
                         } else {
                             store.addToFirstOpenList(target.id)
                         }
@@ -397,64 +634,102 @@ enum AppStoreSearchView {
     }
 }
 
-/// Walks through making an "Open App" Shortcut for an app Ebb can't open directly.
+/// Walks through making an "Open App" Shortcut, for apps iOS gives no launch link
+/// (Camera, Clock, and some App Store apps). Done once per app.
 struct ShortcutSetupView: View {
-    @Environment(LauncherStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
-    let app: AppStoreSearchView.StoreApp
-    let widgetID: UUID?
-    let onDone: () -> Void
+    let name: String
+    let bundleID: String?
+    /// Called with the shortcut's name when added, or nil when skipped.
+    let onFinish: (String?) -> Void
 
     @State private var shortcutName: String
+    @State private var openedShortcuts = false
+    @State private var showName = false
 
-    init(app: AppStoreSearchView.StoreApp, widgetID: UUID?, onDone: @escaping () -> Void) {
-        self.app = app
-        self.widgetID = widgetID
-        self.onDone = onDone
-        _shortcutName = State(initialValue: "Open \(app.shortName)")
+    init(name: String, bundleID: String?, shortcutName: String, onFinish: @escaping (String?) -> Void) {
+        self.name = name
+        self.bundleID = bundleID
+        self.onFinish = onFinish
+        _shortcutName = State(initialValue: shortcutName)
     }
 
     var body: some View {
-        Form {
+        List {
             Section {
-                Text("\(app.shortName) doesn't share a launch link, so Ebb opens it with a Shortcut. It takes about 20 seconds, once.")
-                    .foregroundStyle(.secondary)
+                VStack(spacing: 12) {
+                    AppIconView(name: name, bundleID: bundleID, size: 64)
+                    Text("Set up \(name)")
+                        .font(.title2.weight(.semibold))
+                    Text("iPhone doesn't let other apps open \(name) directly, so Ebb uses a Shortcut. It takes about 20 seconds, and you only do it once.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
             }
-            Section("In the Shortcuts app") {
-                StepRow(number: 1, title: "Create a shortcut", detail: "Tap Copy name & open Shortcuts below. A new, empty shortcut opens.")
-                StepRow(number: 2, title: "Add “Open App”", detail: "Search actions for Open App and choose \(app.shortName).")
-                StepRow(number: 3, title: "Name it", detail: "Rename the shortcut to exactly “\(shortcutName)”, then come back here.")
+            .listRowBackground(Color.clear)
+
+            Section {
+                StepRow(number: 1, title: "Tap Create Shortcut below",
+                        detail: "Shortcuts opens a new, empty shortcut. Ebb copies its name for you.")
+                StepRow(number: 2, title: "Add Open App",
+                        detail: "Search the actions for “Open App”, tap it, then tap App and choose \(name).")
+                StepRow(number: 3, title: "Name it and come back",
+                        detail: "Tap the name at the top, choose Rename, paste “\(shortcutName)”, then tap Done and return to Ebb.")
+            }
+
+            Section {
                 Button {
                     UIPasteboard.general.string = shortcutName
+                    openedShortcuts = true
                     if let url = URL(string: "shortcuts://create-shortcut") { openURL(url) }
                 } label: {
-                    Label("Copy name & open Shortcuts", systemImage: "arrow.up.forward.app")
+                    Label(openedShortcuts ? "Open Shortcuts again" : "Create Shortcut", systemImage: "square.on.square")
+                        .font(.headline)
+                }
+                .buttonStyle(CapsuleButtonStyle())
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+
+                if openedShortcuts {
+                    Button {
+                        var components = URLComponents(string: "shortcuts://run-shortcut")
+                        components?.queryItems = [URLQueryItem(name: "name", value: shortcutName)]
+                        if let url = components?.url { openURL(url) }
+                    } label: {
+                        Label("Test it", systemImage: "play")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
+                }
+            } footer: {
+                if openedShortcuts {
+                    Text("Test it should open \(name). If Shortcuts says it can't find the shortcut, check its name matches “\(shortcutName)” exactly.")
                 }
             }
+
             Section {
-                TextField("Shortcut name", text: $shortcutName)
-            } header: {
-                Text("Shortcut name")
-            } footer: {
-                Text("Must match the shortcut's name exactly.")
+                DisclosureGroup("Use a different shortcut name", isExpanded: $showName) {
+                    TextField("Shortcut name", text: $shortcutName)
+                        .autocorrectionDisabled()
+                }
             }
         }
-        .navigationTitle(app.shortName)
+        .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
+                Button("Skip") { onFinish(nil) }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Add") {
-                    let target = LaunchTarget(name: app.shortName, method: .shortcut(shortcutName), bundleID: app.bundleId)
-                    store.add(target)
-                    if let widgetID { store.toggle(target.id, in: widgetID) } else { store.addToFirstOpenList(target.id) }
-                    dismiss()
-                    onDone()
-                }
-                .disabled(shortcutName.trimmingCharacters(in: .whitespaces).isEmpty)
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") { onFinish(shortcutName.trimmingCharacters(in: .whitespaces)) }
+                    .fontWeight(.semibold)
+                    .disabled(shortcutName.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }

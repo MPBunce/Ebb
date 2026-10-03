@@ -40,6 +40,7 @@ final class LauncherStore {
         events = Self.read([LaunchEvent].self, from: eventsURL) ?? []
         lists = Self.read([AppWidgetList].self, from: listsURL) ?? migrateFavorites()
         if lists.isEmpty { lists = [AppWidgetList(name: "Widget 1")] }
+        mergeDuplicates()
         pruneHistory()
         // Keep widgets in sync even if their copy is missing or from an older version.
         syncWidgets()
@@ -87,14 +88,46 @@ final class LauncherStore {
     }
 
     func contains(catalogApp app: CatalogApp) -> Bool {
-        targets.contains { $0.name == app.name }
+        existing(name: app.name, bundleID: app.bundleID) != nil
+    }
+
+    /// The app already in Ebb that matches this name or App Store bundle ID, if any.
+    /// Used everywhere apps are added, so the same app never ends up in Ebb twice.
+    func existing(name: String, bundleID: String?) -> LaunchTarget? {
+        targets.first { Self.isSameApp($0, name: name, bundleID: bundleID) }
+    }
+
+    /// The app widgets an app is on, by name.
+    func widgetNames(for appID: UUID) -> [String] {
+        lists.filter { $0.appIDs.contains(appID) }.map(\.name)
+    }
+
+    /// Free spots across the unlocked app widgets.
+    var freeWidgetSlots: Int {
+        lists.prefix(maxLists).reduce(0) { $0 + AppWidgetList.capacity - min($1.appIDs.count, AppWidgetList.capacity) }
+    }
+
+    private static func isSameApp(_ target: LaunchTarget, name: String, bundleID: String?) -> Bool {
+        if let bundleID, let other = target.iconBundleID, other.caseInsensitiveCompare(bundleID) == .orderedSame {
+            return true
+        }
+        return normalized(target.name) == normalized(name)
+    }
+
+    private static func normalized(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespaces)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
     }
 
     // MARK: Editing
 
-    func add(_ target: LaunchTarget) {
+    /// Adds an app, or returns the matching app already in Ebb instead of adding a duplicate.
+    @discardableResult
+    func add(_ target: LaunchTarget) -> LaunchTarget {
+        if let match = existing(name: target.name, bundleID: target.bundleID) { return match }
         targets.append(target)
         saveTargets()
+        return target
     }
 
     func update(_ target: LaunchTarget) {
@@ -164,6 +197,36 @@ final class LauncherStore {
             return true
         }
         return false
+    }
+
+    /// Earlier versions could add the same app twice (for example once from the list and
+    /// once from App Store search). Keep the first copy and point widgets at it.
+    private func mergeDuplicates() {
+        var kept: [LaunchTarget] = []
+        var replacement: [UUID: UUID] = [:]
+        for target in targets {
+            if let index = kept.firstIndex(where: { Self.isSameApp($0, name: target.name, bundleID: target.bundleID) }) {
+                replacement[target.id] = kept[index].id
+                kept[index].isMindful = kept[index].isMindful || target.isMindful
+                if kept[index].bundleID == nil { kept[index].bundleID = target.bundleID }
+            } else {
+                kept.append(target)
+            }
+        }
+        guard !replacement.isEmpty else { return }
+        targets = kept
+        for index in lists.indices {
+            var seen = Set<UUID>()
+            lists[index].appIDs = lists[index].appIDs
+                .map { replacement[$0] ?? $0 }
+                .filter { seen.insert($0).inserted }
+        }
+        for index in events.indices {
+            if let id = replacement[events[index].targetID] { events[index].targetID = id }
+        }
+        Self.write(targets, to: targetsURL)
+        Self.write(lists, to: listsURL)
+        saveEvents()
     }
 
     /// Before app widgets, apps were marked as favorites. Spread those over widgets of six.

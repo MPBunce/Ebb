@@ -16,7 +16,7 @@ enum InstalledApps {
     static func detect() -> [CatalogApp] {
         AppCatalog.apps.filter { app in
             if app.category == .essentials { return true }
-            guard let url = URL(string: app.scheme) else { return false }
+            guard let scheme = app.scheme, let url = URL(string: scheme) else { return false }
             return UIApplication.shared.canOpenURL(url)
         }
     }

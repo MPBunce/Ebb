@@ -81,8 +81,23 @@ struct AppIconView: View {
                 .clipShape(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous).strokeBorder(.primary.opacity(0.08)))
                 .accessibilityHidden(true)
+        } else if let symbol = Self.builtInSymbols[name] {
+            // Apple apps that aren't on the App Store, so have no icon to fetch.
+            Image(systemName: symbol)
+                .font(.system(size: size * 0.48, weight: .medium))
+                .foregroundStyle(.white)
+                .frame(width: size, height: size)
+                .background(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous).fill(Color.gray.gradient))
+                .accessibilityHidden(true)
         } else {
             AppMonogram(name: name)
         }
     }
+
+    private static let builtInSymbols = [
+        "Camera": "camera.fill",
+        "Clock": "clock.fill",
+        "Calculator": "plus.forwardslash.minus",
+        "Settings": "gearshape.fill",
+    ]
 }

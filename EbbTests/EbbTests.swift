@@ -154,6 +154,41 @@ struct LauncherStoreTests {
         let second = LauncherStore(directory: directory)
         #expect(second.primaryApps.map(\.name) == ["Maps"])
     }
+
+    @Test func addingTheSameAppTwiceKeepsOne() {
+        let store = makeStore()
+        let spotify = store.add(LaunchTarget(name: "Spotify", method: .urlScheme("spotify://"), bundleID: "com.spotify.client"))
+        // Same bundle ID under the App Store's longer name.
+        let again = store.add(LaunchTarget(name: "Spotify: Music and Podcasts", method: .urlScheme("spotify://"), bundleID: "com.spotify.client"))
+        // Same name, different case, no bundle ID.
+        let manual = store.add(LaunchTarget(name: "spotify ", method: .shortcut("Open Spotify")))
+        #expect(again.id == spotify.id)
+        #expect(manual.id == spotify.id)
+        #expect(store.targets.count == 1)
+    }
+
+    @Test func mergesDuplicatesSavedByOlderVersions() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let first = LaunchTarget(name: "Camera", method: .shortcut("Open Camera"))
+        let copy = LaunchTarget(name: "camera", method: .shortcut("Open Camera"), isMindful: true)
+        let notes = LaunchTarget(name: "Notes", method: .urlScheme("mobilenotes://"))
+        var list = AppWidgetList(name: "Widget 1")
+        list.appIDs = [first.id, copy.id, notes.id]
+        try JSONEncoder().encode([first, copy, notes]).write(to: directory.appending(path: "targets.json"))
+        try JSONEncoder().encode([list]).write(to: directory.appending(path: "lists.json"))
+
+        let store = LauncherStore(directory: directory)
+        #expect(store.targets.map(\.name) == ["Camera", "Notes"])
+        #expect(store.targets[0].isMindful)
+        #expect(store.lists[0].appIDs == [first.id, notes.id])
+    }
+
+    @Test func cameraOpensWithAShortcut() throws {
+        let camera = try #require(AppCatalog.apps.first { $0.name == "Camera" })
+        #expect(camera.needsShortcut)
+        #expect(camera.makeTarget().method == .shortcut("Open Camera"))
+    }
 }
 
 @MainActor
