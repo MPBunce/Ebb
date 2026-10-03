@@ -22,6 +22,7 @@ struct EbbApp: App {
                 .environment(focus)
                 .environment(router)
                 .environment(icons)
+                .task { PlusStore.shared.start(launcher: store) }
                 .onOpenURL { url in
                     if let link = DeepLink(url: url) {
                         router.handle(link, store: store)

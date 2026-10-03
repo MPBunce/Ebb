@@ -2,8 +2,8 @@
 //  Plan.swift
 //  Shared between Ebb and its widgets.
 //
-//  What's free and what's part of Ebb Plus. Purchases aren't wired up yet; when they are,
-//  they only need to set `EbbPlus.isActive`.
+//  What's free and what's part of Ebb Plus. `PlusStore` in the app sets `EbbPlus.isActive`
+//  from App Store purchases; widgets read it from the App Group.
 //
 
 import Foundation
@@ -11,7 +11,7 @@ import Foundation
 nonisolated enum EbbPlus {
     private static let key = "ebbPlusActive"
 
-    /// Whether Plus features are unlocked. Set by purchases later, or the debug switch for now.
+    /// Whether Plus features are unlocked: set by purchases, or the developer switch in debug builds.
     static var isActive: Bool {
         get {
             #if DEBUG

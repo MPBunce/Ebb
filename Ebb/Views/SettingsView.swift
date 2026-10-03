@@ -30,7 +30,7 @@ struct SettingsView: View {
                 Section {
                     NavigationLink { EbbPlusView() } label: {
                         SettingsRow(icon: "sparkles", tint: .yellow, title: "Ebb Plus",
-                                    subtitle: EbbPlus.isActive ? "Unlocked" : "More app widgets and clock styles")
+                                    subtitle: PlusStore.shared.isActive ? "Unlocked" : "More app widgets and clock styles")
                     }
                 }
 

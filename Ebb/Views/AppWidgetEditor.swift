@@ -5,6 +5,7 @@
 //  Editing one app widget (name and up to six apps), and the Ebb Plus page.
 //
 
+import StoreKit
 import SwiftUI
 
 struct AppWidgetEditor: View {
@@ -113,10 +114,9 @@ struct AppWidgetEditor: View {
     }
 }
 
-/// What Ebb Plus will include. Purchases come later; development builds can preview it.
+/// What Ebb Plus includes, with buying and restoring it.
 struct EbbPlusView: View {
-    @State private var isActive = EbbPlus.isActive
-    @Environment(LauncherStore.self) private var store
+    @Bindable private var plus = PlusStore.shared
 
     var body: some View {
         List {
@@ -128,14 +128,45 @@ struct EbbPlusView: View {
                         .font(.largeTitle.weight(.light))
                     Text("More room on your Home Screen and more ways to show the time.")
                         .foregroundStyle(.secondary)
-                    Text("Coming soon")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(.quaternary))
-                        .padding(.top, 4)
+                    if plus.isActive {
+                        Text("Unlocked")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(.quaternary))
+                            .padding(.top, 4)
+                    }
                 }
                 .padding(.vertical, 8)
+            }
+
+            if !plus.isActive {
+                Section {
+                    Button {
+                        Task { await plus.purchase() }
+                    } label: {
+                        HStack {
+                            Text(plus.product.map { "Unlock Ebb Plus for \($0.displayPrice)" } ?? "Unlock Ebb Plus")
+                                .fontWeight(.semibold)
+                            Spacer()
+                            if plus.isPurchasing { ProgressView() }
+                        }
+                    }
+                    .disabled(plus.isPurchasing || plus.isRestoring)
+
+                    Button {
+                        Task { await plus.restore() }
+                    } label: {
+                        HStack {
+                            Text("Restore Purchases")
+                            Spacer()
+                            if plus.isRestoring { ProgressView() }
+                        }
+                    }
+                    .disabled(plus.isPurchasing || plus.isRestoring)
+                } footer: {
+                    Text("A one-time purchase, not a subscription. It works on all your devices signed in with the same Apple Account.")
+                }
             }
 
             Section("Included") {
@@ -155,20 +186,28 @@ struct EbbPlusView: View {
 
             #if DEBUG
             Section {
-                Toggle("Preview Plus features", isOn: $isActive)
-                    .onChange(of: isActive) { _, newValue in
-                        EbbPlus.isActive = newValue
-                        store.refreshPlan()
-                    }
+                Toggle("Preview Plus features", isOn: Binding(
+                    get: { plus.isActive },
+                    set: { plus.setActive($0) }
+                ))
             } header: {
                 Text("Developer")
             } footer: {
-                Text("Only in development builds. Unlocks Plus so you can test it before purchases exist.")
+                Text("Only in development builds. Unlocks Plus without buying it.")
             }
             #endif
         }
         .navigationTitle("Ebb Plus")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await plus.loadProduct() }
+        .alert("Ebb Plus", isPresented: Binding(
+            get: { plus.errorMessage != nil },
+            set: { if !$0 { plus.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(plus.errorMessage ?? "")
+        }
     }
 }
 

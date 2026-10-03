@@ -66,4 +66,4 @@ xcodebuild test -project Ebb.xcodeproj -scheme Ebb -destination 'platform=iOS Si
 
 ## Ebb Plus
 
-Purchases aren't wired up yet. Plan limits live in `Shared/Plan.swift`, and `EbbPlus.isActive` is the single switch a purchase needs to set. Debug builds include a "Preview Plus features" toggle in Settings › Ebb Plus.
+A one-time, non-consumable in-app purchase with product ID `mpbunce.ebb.plus`, bought and restored in Settings › Ebb Plus. `Ebb/Store/PlusStore.swift` uses StoreKit 2 to check what's owned at launch and on every App Store update (including refunds), and sets `EbbPlus.isActive` in the App Group so the widgets see it too. Plan limits live in `Shared/Plan.swift`. Debug builds include a "Preview Plus features" toggle. `EbbTests/EbbPlus.storekit` is a local StoreKit configuration used by the purchase test.

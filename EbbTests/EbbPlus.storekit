@@ -1,0 +1,40 @@
+{
+  "identifier" : "A2D4E6F8-1B3C-4D5E-8F90-1A2B3C4D5E6F",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6747400001",
+      "localizations" : [
+        {
+          "description" : "More app widgets and extra clock styles.",
+          "displayName" : "Ebb Plus",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "mpbunce.ebb.plus",
+      "referenceName" : "Ebb Plus",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    
+    "_developerTeamID" : "69ML2GA87D",
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
