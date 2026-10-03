@@ -9,6 +9,7 @@ A calmer iPhone. iOS doesn't let apps replace the Home Screen, so Ebb builds one
 - **Year**: progress through today, this week, month, or year, as a percent, bar, dots, ring, or countdown.
 - **Life**: share of an average life lived or remaining, from your birthday and sex (CDC 2023 US averages).
 - **Time Saved**: hours given back from apps let go and focus sessions, as a number, breakdown, or "what it adds up to".
+- **Time & Life** (Plus): time given back and life left in one large widget, made for the Today View (extra large on iPad).
 - **Spacer**: an empty block in the widget color for laying out the Home Screen.
 - **Colors and wallpaper**: one color for Ebb, every widget, and a matching wallpaper saved to Photos (Midnight and Paper built in, plus presets and custom colors).
 - **Mindful pause**: a breathing countdown and an optional "what's this for?" before chosen apps.

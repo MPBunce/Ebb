@@ -298,6 +298,7 @@ struct WidgetsView: View {
         ("EbbYear", "Year", "calendar"),
         ("EbbLife", "Life", "hourglass"),
         ("EbbTimeSaved", "Time Saved", "leaf"),
+        ("EbbTimeAndLife", "Time & Life (Plus)", "hourglass.and.lock"),
         ("EbbWeather", "Weather", "cloud.sun"),
         ("EbbSpacer", "Spacer", "rectangle.dashed"),
         ("EbbOpen", "Open Ebb", "water.waves"),

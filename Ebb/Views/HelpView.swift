@@ -338,7 +338,7 @@ struct CommonQuestion: Identifiable {
         CommonQuestion(
             icon: "sparkles",
             question: "What's in Ebb Plus?",
-            answer: "A one-time purchase, not a subscription. It adds up to \(EbbPlus.plusAppWidgets) app widgets (\(EbbPlus.freeAppWidgets) are free) and extra clock styles. Everything else is free."
+            answer: "A one-time purchase, not a subscription. It adds up to \(EbbPlus.plusAppWidgets) app widgets (\(EbbPlus.freeAppWidgets) are free), extra clock styles, and the large Time & Life widget for the Today View. Everything else is free."
         ),
         CommonQuestion(
             icon: "lock.shield",

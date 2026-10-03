@@ -149,6 +149,8 @@ struct EbbPlusView: View {
             Section("Included") {
                 Label("\(EbbPlus.plusAppWidgets - EbbPlus.freeAppWidgets) more app widgets, \(EbbPlus.plusAppWidgets) in total",
                       systemImage: "square.grid.2x2")
+                Label("Time & Life widget: time given back and life left, made for the Today View",
+                      systemImage: "hourglass")
                 ForEach(ClockStyle.allCases.filter(\.isPlus)) { style in
                     Label("\(style.name) clock: \(style.summary)", systemImage: "clock")
                 }

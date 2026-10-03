@@ -12,18 +12,18 @@ import WidgetKit
 
 // MARK: - Shared pieces
 
-private func percent(_ value: Double, digits: Int = 0) -> String {
+func percent(_ value: Double, digits: Int = 0) -> String {
     (value * 100).formatted(.number.precision(.fractionLength(digits))) + "%"
 }
 
 /// Entries every `step` for the next day; views compute everything from the date.
-private func steppedEntries<Entry>(step: TimeInterval, make: (Date) -> Entry) -> Timeline<Entry> {
+func steppedEntries<Entry>(step: TimeInterval, make: (Date) -> Entry) -> Timeline<Entry> {
     let now = Date.now
     let count = max(Int((24 * 60 * 60) / step), 1)
     return Timeline(entries: (0...count).map { make(now.addingTimeInterval(Double($0) * step)) }, policy: .atEnd)
 }
 
-private struct ThinBar: View {
+struct ThinBar: View {
     let value: Double
     var height: CGFloat = 4
 
@@ -81,7 +81,7 @@ private struct DotGrid: View {
     }
 }
 
-private struct Caption: View {
+struct Caption: View {
     let text: String
     var body: some View {
         Text(text)
@@ -93,7 +93,7 @@ private struct Caption: View {
 }
 
 /// Shown in place of a Plus style for free users.
-private struct PlusLocked: View {
+struct PlusLocked: View {
     let name: String
     var body: some View {
         VStack(spacing: 6) {
