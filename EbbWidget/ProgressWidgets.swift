@@ -790,7 +790,10 @@ struct TimeSavedWidgetView: View {
     }
 
     private func since(_ saved: TimeSaved) -> String {
-        "since \(saved.since.formatted(.dateTime.month(.abbreviated).day()))"
+        // Include the year once the start date is in an earlier year.
+        let sameYear = Calendar.current.isDate(saved.since, equalTo: .now, toGranularity: .year)
+        let format: Date.FormatStyle = sameYear ? .dateTime.month(.abbreviated).day() : .dateTime.month(.abbreviated).year()
+        return "since \(saved.since.formatted(format))"
     }
 
     @ViewBuilder
@@ -864,13 +867,20 @@ struct TimeSavedWidgetView: View {
         let letGoShare = saved.totalMinutes == 0 ? 0 : Double(letGoMinutes) / Double(saved.totalMinutes)
 
         return VStack(alignment: align.horizontal, spacing: family == .systemSmall ? 6 : 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            // Small widgets put the unit under the number so big totals have room.
+            let header = family == .systemSmall
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 6))
+            header {
                 Text(total.value)
                     .font(.system(size: family == .systemSmall ? 34 : 44, weight: .thin))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                 Text(total.unit).font(.subheadline.weight(.light))
-                Spacer()
+                    .lineLimit(1)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
             // A split bar: let-gos, then focus time.
             GeometryReader { proxy in
@@ -880,8 +890,11 @@ struct TimeSavedWidgetView: View {
                 }
             }
             .frame(height: 8)
-            row("Apps let go", detail: "\(saved.resistedCount)×", value: "\(letGo.value) \(letGo.unit)", strong: true)
-            row("Focus sessions", detail: nil, value: "\(focus.value) \(focus.unit)", strong: false)
+            let small = family == .systemSmall
+            row(small ? "Let go" : "Apps let go", detail: small ? nil : "\(saved.resistedCount.formatted())×",
+                value: "\(letGo.value) \(small ? shortUnit : letGo.unit)", strong: true)
+            row(small ? "Focus" : "Focus sessions", detail: nil,
+                value: "\(focus.value) \(small ? shortUnit : focus.unit)", strong: false)
             if family == .systemLarge {
                 Spacer(minLength: 0)
                 Caption(text: "Counting \(saved.minutesPerResist) min per app let go, \(since(saved)).")
@@ -922,11 +935,18 @@ struct TimeSavedWidgetView: View {
         let total = amount(saved.totalMinutes)
 
         return VStack(alignment: align.horizontal, spacing: family == .systemLarge ? 12 : 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
+            let header = family == .systemSmall
+                ? AnyLayout(VStackLayout(alignment: align.horizontal, spacing: 0))
+                : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 4))
+            header {
                 Text(total.value)
                     .font(.system(size: family == .systemLarge ? 44 : 28, weight: .thin))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.4)
                 Text("\(total.unit) is enough for").font(.caption).opacity(0.7)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
             if items.isEmpty {
                 Caption(text: "Let a few apps go and this fills up.")
