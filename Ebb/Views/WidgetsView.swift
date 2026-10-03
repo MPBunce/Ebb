@@ -22,8 +22,7 @@ struct WidgetsView: View {
     @AppStorage(AppGroup.Key.minutesPerResist, store: AppGroup.defaults)
     private var minutesPerResist = TimeSaved.defaultMinutesPerResist
 
-    @State private var age: Int? = (AppGroup.defaults.object(forKey: AppGroup.Key.birthDate) as? Date)
-        .map { LifeProgress.age(birthDate: $0) }
+    @State private var birthDate = AppGroup.defaults.object(forKey: AppGroup.Key.birthDate) as? Date
     @State private var addedKinds: Set<String> = []
 
     var body: some View {
@@ -258,20 +257,26 @@ struct WidgetsView: View {
 
     private var lifeSection: some View {
         Section {
-            if let age {
-                Stepper("Age \(age)", value: Binding(get: { age }, set: { saveAge($0) }), in: 1...110)
+            if let birthDate {
+                DatePicker("Birthday",
+                           selection: Binding(get: { birthDate }, set: { saveBirthDate($0) }),
+                           in: Self.birthDateRange,
+                           displayedComponents: .date)
+                LabeledContent("Age", value: "\(LifeProgress.age(birthDate: birthDate))")
                 Picker("Sex", selection: $sex) {
                     ForEach(Sex.allCases) { Text($0.label).tag($0) }
                 }
                 LabeledContent("Life expectancy", value: "\(sex.lifeExpectancy.formatted()) years")
-                Button("Remove age", role: .destructive) { saveAge(nil) }
+                Button("Remove birthday", role: .destructive) { saveBirthDate(nil) }
             } else {
-                Button("Add your age") { saveAge(30) }
+                Button("Add your birthday") {
+                    saveBirthDate(Calendar.current.date(byAdding: .year, value: -30, to: .now))
+                }
             }
         } header: {
             Text("Life widget")
         } footer: {
-            Text("Shows how much of an average life you've lived, using US averages from the CDC (2023). Your age and sex never leave this iPhone.")
+            Text("Shows how much of an average life you've lived, using US averages from the CDC (2023). Your birthday and sex never leave this iPhone.")
         }
     }
 
@@ -298,9 +303,16 @@ struct WidgetsView: View {
         ("EbbOpen", "Open Ebb", "water.waves"),
     ]
 
-    private func saveAge(_ newAge: Int?) {
-        age = newAge
-        AppGroup.defaults.set(newAge.map { LifeProgress.estimatedBirthDate(age: $0) }, forKey: AppGroup.Key.birthDate)
+    /// Birthdays from 110 years ago up to today.
+    private static var birthDateRange: ClosedRange<Date> {
+        (Calendar.current.date(byAdding: .year, value: -110, to: .now) ?? .distantPast)...Date.now
+    }
+
+    private func saveBirthDate(_ date: Date?) {
+        // Store the start of the day, so the widget counts from the birthday itself.
+        let day = date.map { Calendar.current.startOfDay(for: $0) }
+        birthDate = day
+        AppGroup.defaults.set(day, forKey: AppGroup.Key.birthDate)
         reload()
     }
 

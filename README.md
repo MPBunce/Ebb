@@ -7,7 +7,7 @@ A calmer iPhone. iOS doesn't let apps replace the Home Screen, so Ebb builds one
 - **App widgets**: up to 6 apps each, as plain text (medium and large). Taps open apps directly; apps with a mindful pause go through Ebb first. 2 app widgets free, 8 with Ebb Plus.
 - **Clock**: Digital and Analog (free); Stacked, Words, and Day ring (Plus). Optional date and day progress bar. Small, medium, and large.
 - **Year**: progress through today, this week, month, or year, as a percent, bar, dots, ring, or countdown.
-- **Life**: share of an average life lived or remaining, from age and sex (CDC 2023 US averages).
+- **Life**: share of an average life lived or remaining, from your birthday and sex (CDC 2023 US averages).
 - **Time Saved**: hours given back from apps let go and focus sessions, as a number, breakdown, or "what it adds up to".
 - **Spacer**: an empty block in the widget color for laying out the Home Screen.
 - **Colors and wallpaper**: one color for Ebb, every widget, and a matching wallpaper saved to Photos (Midnight and Paper built in, plus presets and custom colors).

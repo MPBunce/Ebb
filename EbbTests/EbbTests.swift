@@ -223,6 +223,15 @@ struct WidgetMathTests {
         #expect(female.fraction(at: now) < male.fraction(at: now))
         #expect(male.fraction(at: birth.addingTimeInterval(-1)) == 0)
     }
+    @Test func ageGoesUpOnTheBirthday() {
+        let calendar = Calendar(identifier: .gregorian)
+        let birthday = calendar.date(from: DateComponents(year: 1994, month: 10, day: 3))!
+        let dayBefore = calendar.date(from: DateComponents(year: 2026, month: 10, day: 2, hour: 23))!
+        let onTheDay = calendar.date(from: DateComponents(year: 2026, month: 10, day: 3, hour: 0, minute: 1))!
+        #expect(LifeProgress.age(birthDate: birthday, now: dayBefore, calendar: calendar) == 31)
+        #expect(LifeProgress.age(birthDate: birthday, now: onTheDay, calendar: calendar) == 32)
+    }
+
 
     @Test func lifeBreakdownRoundsEachUnit() {
         let now = Date(timeIntervalSince1970: 1_790_000_000)

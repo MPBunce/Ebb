@@ -501,7 +501,7 @@ struct LifeWidgetView: View {
             } else {
                 VStack(alignment: align.horizontal, spacing: 4) {
                     Text("Life").font(.headline)
-                    Text("Add your age in Ebb › Widgets.").font(.caption).opacity(0.7)
+                    Text("Add your birthday in Ebb › Widgets.").font(.caption).opacity(0.7)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: align.frame)
             }

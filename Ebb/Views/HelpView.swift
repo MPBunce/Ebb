@@ -333,7 +333,7 @@ struct CommonQuestion: Identifiable {
         CommonQuestion(
             icon: "hourglass",
             question: "Where do the Life widget's numbers come from?",
-            answer: "US life expectancy averages from the CDC (2023), based on the age and sex you enter in **Widgets**. They're averages, not predictions, and if you outlive one the widget counts your extra time with a +."
+            answer: "US life expectancy averages from the CDC (2023), based on the birthday and sex you enter in **Widgets**. They're averages, not predictions, and if you outlive one the widget counts your extra time with a +."
         ),
         CommonQuestion(
             icon: "sparkles",

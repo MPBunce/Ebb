@@ -46,7 +46,7 @@ nonisolated struct LifeProgress {
 
     private static let secondsPerYear = 365.2425 * 24 * 60 * 60
 
-    /// Nil until the user has entered their age in Ebb.
+    /// Nil until the user has entered their birthday in Ebb.
     static func load() -> LifeProgress? {
         let defaults = AppGroup.defaults
         guard let birth = defaults.object(forKey: AppGroup.Key.birthDate) as? Date else { return nil }
@@ -54,14 +54,15 @@ nonisolated struct LifeProgress {
         return LifeProgress(birthDate: birth, expectancyYears: sex.lifeExpectancy)
     }
 
-    /// Ebb only asks for age, so assume the user is halfway between birthdays.
+    /// A birth date from an age alone, halfway between birthdays. Older versions of Ebb
+    /// asked for an age instead of a birthday; tests still use it.
     static func estimatedBirthDate(age: Int, now: Date = .now) -> Date {
         now.addingTimeInterval(-(Double(age) + 0.5) * secondsPerYear)
     }
 
-    /// The age implied by a stored birth date.
-    static func age(birthDate: Date, now: Date = .now) -> Int {
-        Int(now.timeIntervalSince(birthDate) / secondsPerYear)
+    /// Age in whole years, going up on the birthday itself.
+    static func age(birthDate: Date, now: Date = .now, calendar: Calendar = .current) -> Int {
+        calendar.dateComponents([.year], from: birthDate, to: now).year ?? 0
     }
 
     func endDate(calendar: Calendar = .current) -> Date {
