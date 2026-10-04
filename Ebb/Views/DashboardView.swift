@@ -39,12 +39,6 @@ struct DashboardView: View {
         NavigationStack(path: $path) {
             List {
                 Section {
-                    WidgetPreview(apps: store.primaryApps, label: isSetUp ? "Your Home Screen" : "Preview")
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
-
-                Section {
                     NavigationLink(value: DashboardRoute.widgets) {
                         SettingsRow(icon: "square.grid.2x2.fill", tint: .indigo, title: "Widgets",
                                     subtitle: "Everything on your Home Screen: apps, style, colors, and extras")
@@ -58,6 +52,7 @@ struct DashboardView: View {
                 }
 
                 focusSection
+                routinesSection
                 todaySection
 
                 Section {
@@ -80,7 +75,11 @@ struct DashboardView: View {
             }
         }
         .task { await refreshWidgets() }
-        .onAppear(perform: restoreState)
+        .onAppear {
+            restoreState()
+            openPendingRoute()
+        }
+        .onChange(of: router.pendingRoute) { openPendingRoute() }
         .onChange(of: path) { _, newPath in savedPath = newPath.map(\.rawValue).joined(separator: ",") }
         .onChange(of: router.sheet) { _, sheet in savedSheet = sheet?.rawValue ?? "" }
         .onChange(of: scenePhase) { _, phase in
@@ -133,7 +132,16 @@ struct DashboardView: View {
         case .colors: AppearanceView()
         case .wallpaper: WallpaperStepView()
         case .help: HelpView()
+        case .habits: HabitsView()
+        case .todos: TodoListView()
         }
+    }
+
+    /// Opens a page a deep link asked for, like the To-Do widget's +.
+    private func openPendingRoute() {
+        guard let route = router.pendingRoute else { return }
+        router.pendingRoute = nil
+        path = [route]
     }
 
     private func restoreState() {
@@ -157,6 +165,41 @@ struct DashboardView: View {
             }
         }
         #endif
+    }
+
+    private var routinesSection: some View {
+        Section {
+            NavigationLink(value: DashboardRoute.habits) {
+                HStack {
+                    SettingsRow(icon: "checklist", tint: .green, title: "Habits", subtitle: habitsSummary)
+                    if !store.isPlus { PlusBadge() }
+                }
+            }
+            NavigationLink(value: DashboardRoute.todos) {
+                HStack {
+                    SettingsRow(icon: "checkmark.circle", tint: .orange, title: "To-Do", subtitle: todosSummary)
+                    if !store.isPlus { PlusBadge() }
+                }
+            }
+        } header: {
+            Text("Habits & To-Do")
+        }
+    }
+
+    private var habitsSummary: String {
+        guard store.isPlus else { return "Track daily habits on your Home Screen" }
+        let habits = HabitStore.load()
+        guard !habits.isEmpty else { return "Add habits to track every day" }
+        let done = habits.filter { $0.isDone(on: .now) }.count
+        return "\(done) of \(habits.count) done today"
+    }
+
+    private var todosSummary: String {
+        guard store.isPlus else { return "A to-do list that clears finished items every night" }
+        let items = TodoStore.load()
+        guard !items.isEmpty else { return "Nothing to do" }
+        let left = items.filter { !$0.isDone }.count
+        return left == 0 ? "All done for today" : "\(left) left to do"
     }
 
     private var todaySection: some View {

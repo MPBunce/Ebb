@@ -76,6 +76,8 @@ nonisolated enum DeepLink: Equatable {
     case focus
     /// Opens Apple Weather from the Weather widget.
     case weather
+    /// Opens the To-Do page ready to type a new item (the To-Do widget's +).
+    case addTodo
 
     static let scheme = "ebb"
 
@@ -85,6 +87,7 @@ nonisolated enum DeepLink: Equatable {
         case .launch(let id): URL(string: "ebb://launch/\(id.uuidString)")!
         case .focus: URL(string: "ebb://focus")!
         case .weather: URL(string: "ebb://weather")!
+        case .addTodo: URL(string: "ebb://todo/new")!
         }
     }
 
@@ -97,6 +100,8 @@ nonisolated enum DeepLink: Equatable {
             self = .focus
         case "weather":
             self = .weather
+        case "todo":
+            self = .addTodo
         case "launch":
             guard let raw = url.pathComponents.dropFirst().first, let id = UUID(uuidString: raw) else { return nil }
             self = .launch(id)

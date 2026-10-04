@@ -17,6 +17,8 @@ struct EbbWidgetBundle: WidgetBundle {
         TimeSavedWidget()
         TimeAndLifeWidget()
         WeatherWidget()
+        HabitWidget()
+        TodoWidget()
         LockScreenWidget()
     }
 }

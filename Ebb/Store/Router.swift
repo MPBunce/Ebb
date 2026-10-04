@@ -22,13 +22,17 @@ struct BreatherRequest: Identifiable {
 
 /// Screens pushed on the dashboard, restorable across launches.
 enum DashboardRoute: String, Codable, Hashable {
-    case widgets, apps, colors, wallpaper, help
+    case widgets, apps, colors, wallpaper, help, habits, todos
 }
 
 @Observable
 final class Router {
     var sheet: HomeSheet?
     var breather: BreatherRequest?
+    /// A dashboard page a deep link asked for; the dashboard opens it and clears this.
+    var pendingRoute: DashboardRoute?
+    /// Set by the To-Do widget's +, so the To-Do page starts with the keyboard up.
+    var focusNewTodo = false
 
     /// Shows the breather if the block screen asked for one (via its notification).
     func checkForPendingBreather() {
@@ -62,6 +66,10 @@ final class Router {
                 try? await Task.sleep(for: .milliseconds(isMindful ? 400 : 150))
                 store.requestLaunch(id: id)
             }
+        case .addTodo:
+            sheet = nil
+            focusNewTodo = true
+            pendingRoute = .todos
         case .weather:
             // The Weather widget opens Apple Weather, through Ebb like app launches.
             Task {

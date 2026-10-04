@@ -151,6 +151,8 @@ struct EbbPlusView: View {
                       systemImage: "square.grid.2x2")
                 Label("Time & Life widget: time given back and life left, made for the Today View",
                       systemImage: "hourglass")
+                Label("Habits widget: check off daily habits and keep your streaks", systemImage: "checklist")
+                Label("To-Do widget: a list that clears finished items every night", systemImage: "checkmark.circle")
                 ForEach(ClockStyle.allCases.filter(\.isPlus)) { style in
                     Label("\(style.name) clock: \(style.summary)", systemImage: "clock")
                 }
