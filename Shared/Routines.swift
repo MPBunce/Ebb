@@ -169,6 +169,14 @@ nonisolated enum TodoStore {
     static func ordered(_ items: [TodoItem]) -> [TodoItem] {
         items.filter { !$0.isDone } + items.filter(\.isDone)
     }
+
+    /// What a widget with room for `limit` rows shows. Checked items stay crossed out where
+    /// they are, for the satisfaction of seeing them, as long as everything fits; when it
+    /// doesn't, unfinished items get the room first.
+    static func shown(_ items: [TodoItem], limit: Int) -> [TodoItem] {
+        if items.count <= limit { return items }
+        return Array(ordered(items).prefix(limit))
+    }
 }
 
 /// When the to-do list next clears and habit checkmarks reset.

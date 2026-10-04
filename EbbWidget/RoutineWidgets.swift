@@ -223,7 +223,7 @@ struct TodoWidgetView: View {
             if !EbbPlus.isActive {
                 PlusLocked(name: "To-Do")
             } else {
-                content(TodoStore.ordered(TodoStore.load(now: entry.date)))
+                content(TodoStore.load(now: entry.date))
             }
         }
         .padding(16)
@@ -234,7 +234,7 @@ struct TodoWidgetView: View {
     @ViewBuilder
     private func content(_ items: [TodoItem]) -> some View {
         let left = items.filter { !$0.isDone }.count
-        let shown = Array(items.prefix(limit))
+        let shown = TodoStore.shown(items, limit: limit)
         VStack(alignment: .leading, spacing: family == .systemLarge ? 11 : 7) {
             HStack(alignment: .center) {
                 Text("To-do").font(.caption).opacity(0.6)
@@ -277,8 +277,10 @@ struct TodoWidgetView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                if items.count > shown.count {
-                    Text("+\(items.count - shown.count) more")
+                // Only unfinished items count as "more"; hidden finished ones don't need a mention.
+                let hiddenOpen = left - shown.filter { !$0.isDone }.count
+                if hiddenOpen > 0 {
+                    Text("+\(hiddenOpen) more")
                         .font(.caption)
                         .opacity(0.5)
                 }

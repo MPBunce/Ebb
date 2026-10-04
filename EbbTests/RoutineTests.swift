@@ -51,4 +51,11 @@ struct RoutineTests {
         let items = [TodoItem(title: "A", completedAt: day(5)), TodoItem(title: "B"), TodoItem(title: "C")]
         #expect(TodoStore.ordered(items).map(\.title) == ["B", "C", "A"])
     }
+
+    @Test func widgetKeepsCheckedItemsInPlaceWhenTheyFit() {
+        let items = [TodoItem(title: "A", completedAt: day(5)), TodoItem(title: "B"), TodoItem(title: "C")]
+        #expect(TodoStore.shown(items, limit: 4).map(\.title) == ["A", "B", "C"])
+        // Short on room: unfinished items come first.
+        #expect(TodoStore.shown(items, limit: 2).map(\.title) == ["B", "C"])
+    }
 }
