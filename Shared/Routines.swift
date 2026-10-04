@@ -16,6 +16,13 @@ nonisolated enum DayKey {
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
+    /// The start of the day a key names.
+    static func date(from key: String, calendar: Calendar = .current) -> Date? {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3 else { return nil }
+        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+    }
+
     /// The `count` days ending with `date`, oldest first.
     static func days(endingOn date: Date, count: Int, calendar: Calendar = .current) -> [Date] {
         let today = calendar.startOfDay(for: date)
@@ -55,6 +62,31 @@ nonisolated struct Habit: Codable, Identifiable, Equatable {
             day = previous
         }
         return count
+    }
+}
+
+nonisolated extension Habit {
+    /// The longest run of consecutive days it's ever been done.
+    func longestStreak(calendar: Calendar = .current) -> Int {
+        let days = completions.compactMap { DayKey.date(from: $0, calendar: calendar) }.sorted()
+        var best = 0
+        var run = 0
+        var previous: Date?
+        for day in days {
+            if let previous, calendar.date(byAdding: .day, value: 1, to: previous) == day {
+                run += 1
+            } else {
+                run = 1
+            }
+            best = max(best, run)
+            previous = day
+        }
+        return best
+    }
+
+    /// How many of the `days` days ending with `date` it was done.
+    func doneCount(lastDays days: Int, endingOn date: Date, calendar: Calendar = .current) -> Int {
+        DayKey.days(endingOn: date, count: days, calendar: calendar).filter { isDone(on: $0, calendar: calendar) }.count
     }
 }
 
