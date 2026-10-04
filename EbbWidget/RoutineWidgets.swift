@@ -239,12 +239,6 @@ struct TodoWidgetView: View {
             HStack(alignment: .center) {
                 Text("To-do").font(.caption).opacity(0.6)
                 Spacer()
-                if left > 0 {
-                    Text("\(left) left")
-                        .font(.caption)
-                        .monospacedDigit()
-                        .opacity(0.6)
-                }
                 // Widgets can't take typing, so + opens Ebb ready to add one.
                 Link(destination: DeepLink.addTodo.url) {
                     Image(systemName: "plus")
