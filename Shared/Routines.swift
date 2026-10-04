@@ -134,13 +134,18 @@ nonisolated struct TodoItem: Codable, Identifiable, Equatable {
 nonisolated enum TodoStore {
     private static let key = "todos"
 
-    /// The list as it should look at `now`: anything checked off before today is gone.
-    static func load(now: Date = .now, calendar: Calendar = .current) -> [TodoItem] {
+    /// The list as it should look at `date`: anything checked off before that day is gone.
+    /// This never changes what's saved, because widgets draw their future entries ahead of
+    /// time (like the one for after midnight) and that mustn't clear today's checked items.
+    static func load(asOf date: Date = .now, calendar: Calendar = .current) -> [TodoItem] {
+        clearingFinished(stored(), now: date, calendar: calendar)
+    }
+
+    /// Everything saved, including items finished on earlier days.
+    private static func stored() -> [TodoItem] {
         guard let data = AppGroup.defaults.data(forKey: key),
               let items = try? JSONDecoder().decode([TodoItem].self, from: data) else { return [] }
-        let kept = clearingFinished(items, now: now, calendar: calendar)
-        if kept.count != items.count { save(kept) }
-        return kept
+        return items
     }
 
     /// Drops items checked off on an earlier day.
@@ -159,7 +164,8 @@ nonisolated enum TodoStore {
     }
 
     static func toggle(id: UUID, now: Date = .now) {
-        var items = load(now: now)
+        // Clearing old finished items here is safe: `now` is the real time of the tap.
+        var items = load(asOf: now)
         guard let index = items.firstIndex(where: { $0.id == id }) else { return }
         items[index].completedAt = items[index].isDone ? nil : now
         save(items)

@@ -223,7 +223,7 @@ struct TodoWidgetView: View {
             if !EbbPlus.isActive {
                 PlusLocked(name: "To-Do")
             } else {
-                content(TodoStore.load(now: entry.date))
+                content(TodoStore.load(asOf: entry.date))
             }
         }
         .padding(16)

@@ -59,3 +59,32 @@ struct RoutineTests {
         #expect(TodoStore.shown(items, limit: 2).map(\.title) == ["B", "C"])
     }
 }
+
+@Suite(.serialized)
+struct TodoStoreToggleTests {
+    @Test func uncheckingKeepsTheItem() {
+        let saved = TodoStore.load()
+        defer { TodoStore.save(saved) }
+        let item = TodoItem(title: "Probe")
+        TodoStore.save([item])
+        TodoStore.toggle(id: item.id)
+        #expect(TodoStore.load().first?.isDone == true)
+        TodoStore.toggle(id: item.id)
+        let after = TodoStore.load()
+        #expect(after.map(\.title) == ["Probe"])
+        #expect(after.first?.isDone == false)
+    }
+
+    @Test func drawingTomorrowsWidgetDoesNotDeleteTodaysCheckedItems() {
+        let saved = TodoStore.load()
+        defer { TodoStore.save(saved) }
+        let item = TodoItem(title: "Probe")
+        TodoStore.save([item])
+        TodoStore.toggle(id: item.id)
+        // WidgetKit draws the after-midnight entry ahead of time.
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: .now)!
+        #expect(TodoStore.load(asOf: tomorrow).isEmpty)
+        // Today's list still has it, crossed off.
+        #expect(TodoStore.load().first?.isDone == true)
+    }
+}
