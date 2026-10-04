@@ -239,8 +239,8 @@ struct TodoWidgetView: View {
             HStack(alignment: .center) {
                 Text("To-do").font(.caption).opacity(0.6)
                 Spacer()
-                if !items.isEmpty {
-                    Text(left == 0 ? "All done" : "\(left) left")
+                if left > 0 {
+                    Text("\(left) left")
                         .font(.caption)
                         .monospacedDigit()
                         .opacity(0.6)
