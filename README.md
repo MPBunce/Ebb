@@ -1,23 +1,44 @@
 # Ebb
 
-A calmer iPhone. iOS doesn't let apps replace the Home Screen, so Ebb builds one from widgets: your apps as plain text on a wallpaper that matches the widgets exactly, plus quiet clocks and progress widgets. The Ebb app is where you set it all up, along with a mindful pause before distracting apps and Screen Time blocking for work and focus.
+**A calmer iPhone, built from widgets.**
+
+iOS doesn't let apps replace the Home Screen, so Ebb builds one: your apps as plain text on a wallpaper that matches the widgets exactly, with quiet clocks, weather, habits, a to-do list, and a gentle memento mori alongside. The Ebb app is where you set it all up, plus a mindful pause before distracting apps and Screen Time focus schedules that block what you choose.
+
+<p align="center">
+  <img src="assets/screenshots/6.9-inch/01-welcome.png" width="160" alt="Welcome">
+  <img src="assets/screenshots/6.9-inch/02-home.png" width="160" alt="Home">
+  <img src="assets/screenshots/6.9-inch/03-widgets.png" width="160" alt="Widgets">
+  <img src="assets/screenshots/6.9-inch/06-colors.png" width="160" alt="Colors">
+  <img src="assets/screenshots/6.9-inch/05-plus.png" width="160" alt="Ebb Plus">
+</p>
 
 ## Features
 
-- **App widgets**: up to 6 apps each, as plain text (medium and large). Taps open apps directly; apps with a mindful pause go through Ebb first. 2 app widgets free, 8 with Ebb Plus.
-- **Clock**: Digital and Analog (free); Stacked, Words, and Day ring (Plus). Optional date and day progress bar. Small, medium, and large.
+### Home Screen widgets
+- **Apps**: up to 6 apps per widget, as plain text (medium and large). 2 app widgets free, 8 with Ebb Plus.
+- **Clock**: Digital and Analog (free); Stacked, Words, and Day ring (Plus). Updates every minute, with an optional date and day progress bar.
+- **Weather**: now, the next hours, or the week, for your location or a city you pick (Apple Weather).
 - **Year**: progress through today, this week, month, or year, as a percent, bar, dots, ring, or countdown.
-- **Life**: share of an average life lived or remaining, from your birthday and sex (CDC 2023 US averages).
-- **Time Saved**: hours given back from apps let go and focus sessions, as a number, breakdown, or "what it adds up to".
-- **Time & Life** (Plus): time given back and life left in one large widget, made for the Today View (extra large on iPad).
-- **Spacer**: an empty block in the widget color for laying out the Home Screen.
-- **Colors and wallpaper**: one color for Ebb, every widget, and a matching wallpaper saved to Photos (Midnight and Paper built in, plus presets and custom colors).
-- **Mindful pause**: a breathing countdown and an optional "what's this for?" before chosen apps.
-- **Focus and blocking** (Screen Time): work periods that block everything except allowed apps, focus sessions with a strict mode, nightly wind-down, daily limits, and a "Take a breath" button on the block screen that unlocks an app for a set number of minutes.
-- **Insights**: opens, let-gos, streaks, and stated reasons, kept on-device for 30 days.
-- Setup dashboard with a checklist, guided walkthrough, and Settings.
+- **Life**: years, weeks, and days left of an average life (CDC 2023 US averages), with a "+" for extra time and *memento mori* on larger sizes.
+- **Time Saved**: hours given back from apps you let go and focus sessions, including a full-width Big style.
+- **Habits** (Plus): tap to check off today, with a week of dots and your streak.
+- **To-Do** (Plus): check things off right on the Home Screen. Finished items stay crossed out and clear at midnight. **+** opens Ebb ready to type.
+- **Time & Life** (Plus): time given back and life left in one large widget for the Today View.
+- **Spacer**: an empty block in the widget color for laying things out.
 
-Everything stays on the iPhone. There are no accounts, servers, or analytics.
+Every widget follows Ebb's colors, typeface, and alignment (left, center, or right), and can be changed per widget with Edit Widget.
+
+### In the app
+- **Colors and wallpaper**: one color for Ebb, every widget, and a matching wallpaper saved to Photos. Midnight and Paper are built in and calibrated so the widget edges disappear; "Match widgets to my wallpaper" fine-tunes any color.
+- **Apps**: finds installed apps, shows their real icons, and searches the App Store from one search bar. Links and Shortcuts cover anything else.
+- **Habits** (Plus): a history page per habit with current and best streaks and a six-month heat map. Tap any day to fill it in.
+- **To-Do** (Plus): add, check off, reorder, and delete.
+- **Mindful pause**: a breathing countdown and an optional "what's this for?" before chosen apps.
+- **Focus** (Screen Time): scheduled focuses that block the apps you pick (or, optionally, everything except them), quick focus sessions with a strict mode, a daily limit, and a "Take a breath" button on the block screen that unlocks an app for a set time.
+- **Insights**: opens, let-gos, streaks, and reasons, kept on the device for 30 days.
+- **Help & Setup**: a setup checklist, a guided walkthrough, and searchable common questions.
+
+Everything stays on the iPhone. There are no accounts, servers, or analytics. Ebb only goes online for App Store app icons and, if you use the Weather widget, Apple Weather.
 
 ## Requirements
 
@@ -29,13 +50,13 @@ Everything stays on the iPhone. There are no accounts, servers, or analytics.
 
 | Folder | What it is |
 | --- | --- |
-| `Ebb/` | The app: dashboard, setup, settings, focus, insights |
-| `EbbWidget/` | Widget extension: Apps, Spacer, Clock, Year, Life, Time Saved, Open Ebb |
+| `Ebb/` | The app: dashboard, setup, settings, focus, habits, to-do, insights |
+| `EbbWidget/` | Widget extension: Apps, Spacer, Clock, Weather, Year, Life, Time Saved, Time & Life, Habits, To-Do, Open Ebb |
 | `EbbMonitor/` | DeviceActivity monitor: starts and ends scheduled blocking |
 | `EbbShield/` | Shield configuration: the block screen's look |
 | `EbbShieldAction/` | Shield action: the block screen's "Take a breath" button |
-| `Shared/` | Code shared by the app and all extensions (app group, colors, plan limits, progress math) |
-| `SharedScreenTime/` | Code shared by the app and Screen Time extensions (shields, work periods) |
+| `Shared/` | Code shared by the app and all extensions (app group, colors, plan limits, progress math, weather, habits and to-dos) |
+| `SharedScreenTime/` | Code shared by the app and Screen Time extensions (shields, focus schedules) |
 | `EbbTests/` | Unit tests |
 
 ## Signing
@@ -46,9 +67,9 @@ Everything stays on the iPhone. There are no accounts, servers, or analytics.
 | App bundle ID | `mpbunce.Ebb` |
 | Extensions | `mpbunce.Ebb.Widget`, `mpbunce.Ebb.Monitor`, `mpbunce.Ebb.Shield`, `mpbunce.Ebb.ShieldAction` |
 | App group | `group.mpbunce.Ebb` |
-| Capabilities | App Groups (all targets), Family Controls (app and Screen Time extensions) |
+| Capabilities | App Groups (all targets), Family Controls (app and Screen Time extensions), WeatherKit (app and widget) |
 
-Signing is automatic. Family Controls works for development builds on a paid team. Before shipping to the App Store, request the Family Controls distribution entitlement from Apple.
+Signing is automatic. Family Controls (Distribution) is approved and enabled for the app and all three Screen Time extensions. WeatherKit must also be ticked under App Services for `mpbunce.Ebb` and `mpbunce.Ebb.Widget`.
 
 ## Running
 
