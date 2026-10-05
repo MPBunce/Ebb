@@ -54,6 +54,12 @@ struct WeatherConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Alignment", default: .automatic)
     var alignment: LauncherAlignment
+
+    @Parameter(title: "Row", default: .row1)
+    var row: WidgetRowOption
+
+    @Parameter(title: "Side", default: .left)
+    var side: WidgetSideOption
 }
 
 struct WeatherEntry: TimelineEntry {
@@ -134,7 +140,7 @@ struct WeatherWidgetView: View {
             }
         }
         .padding(family.isAccessory ? 0 : 16)
-        .ebbWidgetStyle()
+        .ebbWidgetStyle(spot: WidgetSpot(row: config.row, side: config.side))
         .widgetURL(isReady ? DeepLink.weather.url : DeepLink.home.url)
     }
 

@@ -51,21 +51,23 @@ struct ToggleTodoIntent: AppIntent {
 /// Refreshes now and again at midnight, when habits reset and checked to-dos clear.
 struct DailyEntry: TimelineEntry {
     let date: Date
+    var spot: WidgetSpot? = nil
 }
 
-struct DailyProvider: TimelineProvider {
+struct DailyProvider: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> DailyEntry { DailyEntry(date: .now) }
 
-    func getSnapshot(in context: Context, completion: @escaping (DailyEntry) -> Void) {
-        completion(DailyEntry(date: .now))
+    func snapshot(for configuration: PositionIntent, in context: Context) async -> DailyEntry {
+        DailyEntry(date: .now, spot: configuration.spot)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<DailyEntry>) -> Void) {
+    func timeline(for configuration: PositionIntent, in context: Context) async -> Timeline<DailyEntry> {
         let now = Date.now
         let midnight = Midnight.next(after: now)
         // A second after midnight, so the new day's date is safely past the boundary.
-        let entries = [DailyEntry(date: now), DailyEntry(date: midnight.addingTimeInterval(1))]
-        completion(Timeline(entries: entries, policy: .after(Midnight.next(after: midnight))))
+        let entries = [DailyEntry(date: now, spot: configuration.spot),
+                       DailyEntry(date: midnight.addingTimeInterval(1), spot: configuration.spot)]
+        return Timeline(entries: entries, policy: .after(Midnight.next(after: midnight)))
     }
 }
 
@@ -123,7 +125,7 @@ struct HabitWidgetView: View {
             }
         }
         .padding(16)
-        .ebbWidgetStyle()
+        .ebbWidgetStyle(spot: entry.spot)
         .widgetURL(DeepLink.home.url)
     }
 
@@ -194,7 +196,7 @@ struct HabitWidgetView: View {
 
 struct HabitWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "EbbHabits", provider: DailyProvider()) { entry in
+        AppIntentConfiguration(kind: "EbbHabits", intent: PositionIntent.self, provider: DailyProvider()) { entry in
             HabitWidgetView(entry: entry)
         }
         .configurationDisplayName("Habits")
@@ -227,7 +229,7 @@ struct TodoWidgetView: View {
             }
         }
         .padding(16)
-        .ebbWidgetStyle()
+        .ebbWidgetStyle(spot: entry.spot)
         .widgetURL(DeepLink.home.url)
     }
 
@@ -286,7 +288,7 @@ struct TodoWidgetView: View {
 
 struct TodoWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "EbbTodo", provider: DailyProvider()) { entry in
+        AppIntentConfiguration(kind: "EbbTodo", intent: PositionIntent.self, provider: DailyProvider()) { entry in
             TodoWidgetView(entry: entry)
         }
         .configurationDisplayName("To-Do")

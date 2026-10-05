@@ -18,26 +18,27 @@ struct SpacerTapIntent: AppIntent {
     func perform() async throws -> some IntentResult { .result() }
 }
 
-struct SpacerProvider: TimelineProvider {
-    func placeholder(in context: Context) -> SpacerEntry { SpacerEntry(date: .now) }
+struct SpacerProvider: AppIntentTimelineProvider {
+    func placeholder(in context: Context) -> SpacerEntry { SpacerEntry(date: .now, spot: nil) }
 
-    func getSnapshot(in context: Context, completion: @escaping (SpacerEntry) -> Void) {
-        completion(SpacerEntry(date: .now))
+    func snapshot(for configuration: PositionIntent, in context: Context) async -> SpacerEntry {
+        SpacerEntry(date: .now, spot: configuration.spot)
     }
 
-    func getTimeline(in context: Context, completion: @escaping (Timeline<SpacerEntry>) -> Void) {
-        // Ebb reloads widgets when the color changes, so nothing to schedule.
-        completion(Timeline(entries: [SpacerEntry(date: .now)], policy: .never))
+    func timeline(for configuration: PositionIntent, in context: Context) async -> Timeline<SpacerEntry> {
+        // Ebb reloads widgets when the color or wallpaper changes, so nothing to schedule.
+        Timeline(entries: [SpacerEntry(date: .now, spot: configuration.spot)], policy: .never)
     }
 }
 
 struct SpacerEntry: TimelineEntry {
     let date: Date
+    let spot: WidgetSpot?
 }
 
 struct SpacerWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "EbbSpacer", provider: SpacerProvider()) { _ in
+        AppIntentConfiguration(kind: "EbbSpacer", intent: PositionIntent.self, provider: SpacerProvider()) { entry in
             Button(intent: SpacerTapIntent()) {
                 Color.clear
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -45,7 +46,7 @@ struct SpacerWidget: Widget {
             }
             .buttonStyle(.plain)
             .accessibilityHidden(true)
-            .ebbWidgetStyle()
+            .ebbWidgetStyle(spot: entry.spot)
         }
         .configurationDisplayName("Spacer")
         .description("An empty block in your widget color, to space out your Home Screen.")

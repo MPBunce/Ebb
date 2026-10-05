@@ -34,6 +34,12 @@ struct ClockConfigurationIntent: WidgetConfigurationIntent {
     var showProgress: Bool
     @Parameter(title: "Alignment", default: .automatic)
     var alignment: LauncherAlignment
+
+    @Parameter(title: "Row", default: .row1)
+    var row: WidgetRowOption
+
+    @Parameter(title: "Side", default: .left)
+    var side: WidgetSideOption
 }
 
 struct ClockEntry: TimelineEntry {
@@ -42,6 +48,7 @@ struct ClockEntry: TimelineEntry {
     var showDate = true
     var showProgress = true
     var alignment: ListAlignment = .leading
+    var spot: WidgetSpot? = nil
 }
 
 struct ClockProvider: AppIntentTimelineProvider {
@@ -50,14 +57,14 @@ struct ClockProvider: AppIntentTimelineProvider {
     }
 
     func snapshot(for configuration: ClockConfigurationIntent, in context: Context) async -> ClockEntry {
-        ClockEntry(date: .now, style: configuration.style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved)
+        ClockEntry(date: .now, style: configuration.style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved, spot: WidgetSpot(row: configuration.row, side: configuration.side))
     }
 
     func timeline(for configuration: ClockConfigurationIntent, in context: Context) async -> Timeline<ClockEntry> {
         let style = configuration.style
         // `Text(date, style: .time)` shows the entry's time and doesn't tick by itself, so
         // every style needs an entry on each minute boundary to stay in step with the status bar.
-        let entries = MinuteTimeline.dates().map { ClockEntry(date: $0, style: style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved) }
+        let entries = MinuteTimeline.dates().map { ClockEntry(date: $0, style: style, showDate: configuration.showDate, showProgress: configuration.showProgress, alignment: configuration.alignment.resolved, spot: WidgetSpot(row: configuration.row, side: configuration.side)) }
         return Timeline(entries: entries, policy: .atEnd)
     }
 }
@@ -111,7 +118,7 @@ struct ClockWidgetView: View {
             }
         }
         .padding(family == .accessoryRectangular ? 0 : 16)
-        .ebbWidgetStyle()
+        .ebbWidgetStyle(spot: entry.spot)
         .widgetURL(DeepLink.home.url)
     }
 

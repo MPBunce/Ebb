@@ -225,6 +225,12 @@ struct YearConfigurationIntent: WidgetConfigurationIntent {
     var showBar: Bool
     @Parameter(title: "Alignment", default: .automatic)
     var alignment: LauncherAlignment
+
+    @Parameter(title: "Row", default: .row1)
+    var row: WidgetRowOption
+
+    @Parameter(title: "Side", default: .left)
+    var side: WidgetSideOption
 }
 
 struct YearEntry: TimelineEntry {
@@ -277,7 +283,7 @@ struct YearWidgetView: View {
             }
         }
         .padding(family.isAccessory ? 0 : 16)
-        .ebbWidgetStyle()
+        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side))
         .widgetURL(DeepLink.home.url)
     }
 
@@ -455,6 +461,12 @@ struct LifeConfigurationIntent: WidgetConfigurationIntent {
     var showBar: Bool
     @Parameter(title: "Alignment", default: .automatic)
     var alignment: LauncherAlignment
+
+    @Parameter(title: "Row", default: .row1)
+    var row: WidgetRowOption
+
+    @Parameter(title: "Side", default: .left)
+    var side: WidgetSideOption
 }
 
 struct LifeEntry: TimelineEntry {
@@ -507,7 +519,7 @@ struct LifeWidgetView: View {
             }
         }
         .padding(family.isAccessory ? 0 : 16)
-        .ebbWidgetStyle()
+        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side))
         .widgetURL(DeepLink.home.url)
     }
 
@@ -724,6 +736,12 @@ struct SavedConfigurationIntent: WidgetConfigurationIntent {
     var unit: SavedUnit
     @Parameter(title: "Alignment", default: .automatic)
     var alignment: LauncherAlignment
+
+    @Parameter(title: "Row", default: .row1)
+    var row: WidgetRowOption
+
+    @Parameter(title: "Side", default: .left)
+    var side: WidgetSideOption
 }
 
 struct SavedEntry: TimelineEntry {
@@ -771,7 +789,7 @@ struct TimeSavedWidgetView: View {
             }
         }
         .padding(family.isAccessory ? 0 : 16)
-        .ebbWidgetStyle()
+        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side))
         .widgetURL(DeepLink.home.url)
     }
 

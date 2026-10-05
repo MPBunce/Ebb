@@ -219,6 +219,7 @@ struct WidgetsView: View {
                     ForEach(Appearance.presets) { preset in
                         let isSelected = backgroundHex == preset.background
                         Button {
+                            if SceneWallpaper.current != nil { SceneRenderer.clear() }
                             backgroundHex = preset.background
                             textHex = preset.text
                         } label: {
@@ -247,7 +248,7 @@ struct WidgetsView: View {
                 }
                 .padding(.vertical, 4)
             }
-            NavigationLink("Custom colors & wallpaper") { AppearanceView() }
+            NavigationLink("Scenes, custom colors & wallpaper") { AppearanceView() }
         } header: {
             Text("Colors")
         } footer: {

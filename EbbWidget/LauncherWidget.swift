@@ -10,6 +10,7 @@
 
 import AppIntents
 import SwiftUI
+import UIKit
 import WidgetKit
 
 // MARK: - Configuration
@@ -93,6 +94,12 @@ struct LauncherConfigurationIntent: WidgetConfigurationIntent {
 
     @Parameter(title: "Show Clock", default: false)
     var showClock: Bool
+
+    @Parameter(title: "Row", default: .row1)
+    var row: WidgetRowOption
+
+    @Parameter(title: "Side", default: .left)
+    var side: WidgetSideOption
 }
 
 // MARK: - Timeline
@@ -177,7 +184,7 @@ struct LauncherWidgetView: View {
             }
         }
         .padding(16)
-        .ebbWidgetStyle()
+        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side))
     }
 
     @ViewBuilder
@@ -263,20 +270,35 @@ struct LauncherWidget: Widget {
 // MARK: - Shared style
 
 extension View {
-    /// Ebb's colors from shared settings, so widgets blend into a matching wallpaper.
-    func ebbWidgetStyle() -> some View {
-        modifier(EbbWidgetStyle())
+    /// Ebb's colors from shared settings, so widgets blend into a matching wallpaper. With a
+    /// scene wallpaper, `spot` picks the slice of the picture that sits behind this widget.
+    func ebbWidgetStyle(spot: WidgetSpot? = nil) -> some View {
+        modifier(EbbWidgetStyle(spot: spot))
     }
 }
 
 private struct EbbWidgetStyle: ViewModifier {
     @Environment(\.widgetFamily) private var family
+    let spot: WidgetSpot?
+
+    private var sceneSlice: UIImage? {
+        guard let spot, let size = WidgetSize(family),
+              let data = SceneSlices.data(for: size, at: spot) else { return nil }
+        return UIImage(data: data)
+    }
 
     func body(content: Content) -> some View {
         let isAccessory = [.accessoryCircular, .accessoryRectangular, .accessoryInline].contains(family)
         if isAccessory {
             // Lock Screen widgets are tinted by the system.
             content.containerBackground(.clear, for: .widget)
+        } else if let slice = sceneSlice {
+            content
+                .fontDesign(WidgetStyle.typeface.design)
+                .foregroundStyle(Appearance.text.color)
+                .containerBackground(for: .widget) {
+                    Image(uiImage: slice).resizable()
+                }
         } else {
             content
                 .fontDesign(WidgetStyle.typeface.design)
@@ -284,6 +306,68 @@ private struct EbbWidgetStyle: ViewModifier {
                 .containerBackground(Appearance.widgetBackground.color, for: .widget)
         }
     }
+}
+
+extension WidgetSize {
+    init?(_ family: WidgetFamily) {
+        switch family {
+        case .systemSmall: self = .small
+        case .systemMedium: self = .medium
+        case .systemLarge: self = .large
+        default: return nil
+        }
+    }
+}
+
+/// Edit Widget › Row: which icon row the widget's top edge sits on. Only matters with a
+/// scene wallpaper, where it picks the slice of the picture behind the widget.
+enum WidgetRowOption: String, AppEnum {
+    case row1, row2, row3, row4, row5
+
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Row"
+    static let caseDisplayRepresentations: [WidgetRowOption: DisplayRepresentation] = [
+        .row1: "Top", .row2: "2nd row", .row3: "3rd row", .row4: "4th row", .row5: "5th row",
+    ]
+
+    var index: Int {
+        switch self {
+        case .row1: 0
+        case .row2: 1
+        case .row3: 2
+        case .row4: 3
+        case .row5: 4
+        }
+    }
+}
+
+/// Edit Widget › Side, for small widgets on a scene wallpaper.
+enum WidgetSideOption: String, AppEnum {
+    case left, right
+
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Side"
+    static let caseDisplayRepresentations: [WidgetSideOption: DisplayRepresentation] = [
+        .left: "Left", .right: "Right",
+    ]
+}
+
+extension WidgetSpot {
+    init(row: WidgetRowOption, side: WidgetSideOption) {
+        self.init(row: row.index, right: side == .right)
+    }
+}
+
+/// For widgets with no other options: just where they sit, for scene wallpapers.
+struct PositionIntent: WidgetConfigurationIntent {
+    static let title: LocalizedStringResource = "Position"
+    static let description = IntentDescription("Where this widget sits, so it matches a scene wallpaper.")
+
+    @Parameter(title: "Row", default: .row1)
+    var row: WidgetRowOption
+
+    @Parameter(title: "Side", default: .left)
+    var side: WidgetSideOption
+
+    var spot: WidgetSpot { WidgetSpot(row: row, side: side) }
 }
 
 #Preview(as: .systemMedium) {

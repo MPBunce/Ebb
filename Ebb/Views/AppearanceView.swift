@@ -23,6 +23,8 @@ struct AppearanceView: View {
 
     var body: some View {
         Form {
+            ScenesSection()
+
             Section {
                 HStack(spacing: 16) {
                     ForEach(Appearance.wallpaperPresets) { preset in
@@ -101,6 +103,7 @@ struct AppearanceView: View {
     }
 
     private func apply(_ preset: ColorPreset) {
+        if SceneWallpaper.current != nil { SceneRenderer.clear() }
         backgroundHex = preset.background
         textHex = preset.text
     }
