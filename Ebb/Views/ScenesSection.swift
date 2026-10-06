@@ -121,83 +121,135 @@ struct ScenesSection: View {
     }
 }
 
-/// Cuts the widget slices from a screenshot of the user's own Home Screen, so the widgets
-/// match the wallpaper exactly as iOS draws it. Works with Ebb's scenes or any photo.
+/// Makes widgets blend into the wallpaper exactly as iOS shows it, in two screenshots:
+/// one of an empty Home Screen page (the wallpaper as iOS draws it), and one while the widgets
+/// show measuring colors (where each widget really is). No Row settings needed.
 struct ScreenMatchSection: View {
-    @State private var item: PhotosPickerItem?
+    @Environment(\.scenePhase) private var scenePhase
+
+    @State private var wallpaperItem: PhotosPickerItem?
+    @State private var measureItem: PhotosPickerItem?
     @State private var layout = IconLayout.current
-    @State private var matched = SceneSlices.fromScreenshot
-    @State private var message: String?
+    @State private var wallpaperMatched = SceneSlices.fromScreenshot
+    @State private var measuring = WidgetPlacement.isMeasuring
+    @State private var widgetsFound = WidgetPlacement.frames.count
+    @State private var message: (text: String, ok: Bool)?
     @State private var isWorking = false
 
     var body: some View {
         Section {
-            VStack(alignment: .leading, spacing: 10) {
-                step(1, "Set your wallpaper (one of the scenes above, or any photo).")
-                step(2, "On your Home Screen, long-press an empty spot, then swipe left past your last page to an empty page.")
-                step(3, "Take a screenshot there (side button + volume up), then tap Done.")
-                step(4, "Choose that screenshot below.")
-            }
-            .padding(.vertical, 4)
-
-            Picker("Home Screen icons", selection: $layout) {
-                ForEach(IconLayout.allCases) { Text($0.label).tag($0) }
-            }
-
-            PhotosPicker(selection: $item, matching: .screenshots) {
-                Label(isWorking ? "Matching…" : (matched ? "Match again with a new screenshot" : "Choose screenshot"),
-                      systemImage: matched ? "checkmark.circle.fill" : "photo.badge.checkmark")
+            stepHeader(1, "Match the wallpaper", done: wallpaperMatched)
+            Text("On your Home Screen, long-press an empty spot and swipe left past your last page to an empty page. Take a screenshot there, tap Done, then choose it here.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            PhotosPicker(selection: $wallpaperItem, matching: .screenshots) {
+                Label(wallpaperMatched ? "Choose a new empty-page screenshot" : "Choose empty-page screenshot",
+                      systemImage: "photo")
             }
             .disabled(isWorking)
 
-            if let message {
-                Text(message)
+            stepHeader(2, "Find my widgets", done: widgetsFound > 0 && !measuring)
+            if measuring {
+                Text("Your Ebb widgets are now bright colors. Go to your Home Screen, wait until they've all changed, take a screenshot, then choose it here.")
                     .font(.footnote)
-                    .foregroundStyle(matched ? Color.green : Color.red)
+                    .foregroundStyle(.secondary)
+                PhotosPicker(selection: $measureItem, matching: .screenshots) {
+                    Label("Choose the colorful screenshot", systemImage: "viewfinder")
+                }
+                .disabled(isWorking)
+                Button("Cancel", role: .cancel) {
+                    SceneRenderer.stopMeasuring()
+                    measuring = false
+                }
+            } else {
+                Text(widgetsFound > 0
+                     ? "Ebb knows where \(widgetsFound) widget\(widgetsFound == 1 ? " is" : "s are"). Measure again if you move or add widgets."
+                     : "Ebb briefly turns your widgets bright colors so it can see exactly where each one is from a screenshot.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button {
+                    SceneRenderer.startMeasuring()
+                    measuring = true
+                    message = nil
+                } label: {
+                    Label(widgetsFound > 0 ? "Measure again" : "Start measuring", systemImage: "viewfinder")
+                }
             }
 
-            if matched {
-                NavigationLink("Which row is my widget on?") { WidgetRowGuide(layout: layout) }
+            if let message {
+                Text(message.text)
+                    .font(.footnote)
+                    .foregroundStyle(message.ok ? Color.green : Color.red)
             }
         } header: {
-            Text("Match my Home Screen")
+            Text("Make widgets disappear")
         } footer: {
-            Text("iPhone zooms, dims and color-shifts wallpapers a little. Matching from a screenshot copies exactly what's on your screen, so widgets blend in as much as iOS allows (iOS still draws a faint outline around every widget). Then set each widget's Row in Edit Widget.")
+            Text("iPhone zooms, dims and color-shifts wallpapers a little, so Ebb copies exactly what's on your screen. Works with Ebb's scenes or any photo. iOS still draws a faint outline around every widget.")
         }
-        .onChange(of: item) { _, new in
-            guard let new else { return }
-            Task { await match(new) }
+        .onChange(of: wallpaperItem) { _, item in
+            guard let item else { return }
+            Task { await matchWallpaper(item) }
+        }
+        .onChange(of: measureItem) { _, item in
+            guard let item else { return }
+            Task { await measure(item) }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { measuring = WidgetPlacement.isMeasuring }
         }
     }
 
-    private func step(_ n: Int, _ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("\(n)").font(.subheadline.weight(.semibold).monospacedDigit()).foregroundStyle(.tint)
-            Text(text).font(.subheadline)
+    private func stepHeader(_ n: Int, _ title: String, done: Bool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: done ? "checkmark.circle.fill" : "\(n).circle")
+                .foregroundStyle(done ? Color.green : Color.accentColor)
+                .font(.title3)
+            Text(title).font(.headline)
         }
+        .padding(.top, 4)
     }
 
-    private func match(_ item: PhotosPickerItem) async {
+    private func loadImage(_ item: PhotosPickerItem) async -> UIImage? {
+        guard let data = try? await item.loadTransferable(type: Data.self) else { return nil }
+        return UIImage(data: data)
+    }
+
+    private func matchWallpaper(_ item: PhotosPickerItem) async {
         isWorking = true
-        defer { isWorking = false; self.item = nil }
-        guard let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) else {
-            matched = false
-            message = "Couldn't open that screenshot."
-            return
+        defer { isWorking = false; wallpaperItem = nil }
+        guard let image = await loadImage(item) else {
+            message = ("Couldn't open that screenshot.", false); return
         }
         switch SceneRenderer.matchScreenshot(image, layout: layout) {
         case .success:
-            matched = true
-            message = "Matched. Your widgets now use your screen's wallpaper."
+            wallpaperMatched = true
+            message = ("Wallpaper matched.", true)
         case .failure(.wrongSize):
-            matched = false
-            message = "That screenshot isn't from this iPhone's screen. Take it on this iPhone, in portrait."
+            message = ("That screenshot isn't from this iPhone's screen. Take it on this iPhone, in portrait.", false)
         case .failure(.looksBusy):
-            matched = false
-            message = "That screenshot has apps or widgets on it. Use an empty Home Screen page."
+            message = ("That screenshot has apps or widgets on it. Use an empty Home Screen page.", false)
         case .failure(.unreadable):
-            matched = false
-            message = "Couldn't read that screenshot."
+            message = ("Couldn't read that screenshot.", false)
+        }
+    }
+
+    private func measure(_ item: PhotosPickerItem) async {
+        isWorking = true
+        defer { isWorking = false; measureItem = nil }
+        guard let image = await loadImage(item) else {
+            message = ("Couldn't open that screenshot.", false); return
+        }
+        switch SceneRenderer.measure(image) {
+        case .success(let count):
+            widgetsFound = count
+            measuring = false
+            message = ("Found \(count) widget\(count == 1 ? "" : "s"). They now use the wallpaper behind them.", true)
+        case .failure(.wrongSize):
+            message = ("That screenshot isn't from this iPhone's screen.", false)
+        case .failure(.noWidgetsFound):
+            message = ("No colored widgets found. Wait for them all to change color, then take the screenshot again.", false)
+        case .failure(.unreadable):
+            message = ("Couldn't read that screenshot.", false)
         }
     }
 }

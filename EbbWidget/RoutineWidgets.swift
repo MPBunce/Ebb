@@ -125,7 +125,7 @@ struct HabitWidgetView: View {
             }
         }
         .padding(16)
-        .ebbWidgetStyle(spot: entry.spot)
+        .ebbWidgetStyle(spot: entry.spot, identity: "habits")
         .widgetURL(DeepLink.home.url)
     }
 
@@ -229,7 +229,7 @@ struct TodoWidgetView: View {
             }
         }
         .padding(16)
-        .ebbWidgetStyle(spot: entry.spot)
+        .ebbWidgetStyle(spot: entry.spot, identity: "todo")
         .widgetURL(DeepLink.home.url)
     }
 

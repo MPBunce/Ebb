@@ -118,7 +118,7 @@ struct ClockWidgetView: View {
             }
         }
         .padding(family == .accessoryRectangular ? 0 : 16)
-        .ebbWidgetStyle(spot: entry.spot)
+        .ebbWidgetStyle(spot: entry.spot, identity: "clock")
         .widgetURL(DeepLink.home.url)
     }
 

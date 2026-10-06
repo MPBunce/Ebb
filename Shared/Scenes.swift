@@ -144,6 +144,10 @@ nonisolated enum SceneSlices {
             .appendingPathComponent("Scenes", isDirectory: true)
     }
 
+    static func measuredURL(_ colorIndex: Int) -> URL? {
+        folder?.appendingPathComponent("measured-\(colorIndex).png")
+    }
+
     static func url(for size: WidgetSize, at spot: WidgetSpot) -> URL? {
         folder?.appendingPathComponent(spot.fileName(for: size))
     }
@@ -159,5 +163,83 @@ nonisolated enum SceneSlices {
     static func data(for size: WidgetSize, at spot: WidgetSpot) -> Data? {
         guard SceneWallpaper.current != nil || fromScreenshot, let url = url(for: size, at: spot) else { return nil }
         return try? Data(contentsOf: url)
+    }
+}
+
+/// Where each widget really is, found from a screenshot instead of the Row setting.
+///
+/// While measuring, every Ebb widget fills itself with a bright color picked from its
+/// identity (kind, size and settings). Ebb finds those colors in a screenshot of the Home
+/// Screen, snaps each one to the icon grid, and saves where it is. Widgets then use the
+/// saved spot for their slice of the wallpaper.
+nonisolated enum WidgetPlacement {
+    private static let measuringKey = "widgetPlacementMeasuring"
+    private static let placementsKey = "widgetPlacements"
+
+    /// Bright, evenly spaced hues that are easy to tell apart in a screenshot.
+    static let palette: [(red: Double, green: Double, blue: Double)] = (0..<12).map { i in
+        hsv(hue: Double(i) / 12, saturation: 1, value: 1)
+    }
+
+    static var isMeasuring: Bool {
+        get { AppGroup.defaults.bool(forKey: measuringKey) }
+        set { AppGroup.defaults.set(newValue, forKey: measuringKey) }
+    }
+
+    /// A stable key for one widget: what it is, its size, and what it shows.
+    static func key(identity: String, size: WidgetSize) -> String { "\(identity)|\(size.rawValue)" }
+
+    /// The palette color a widget shows while measuring.
+    static func colorIndex(for key: String) -> Int {
+        // FNV-1a, so the index is the same in the app and the widget extension.
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in key.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x100000001b3
+        }
+        return Int(hash % UInt64(palette.count))
+    }
+
+    /// Measured widget frames on screen, in points, by palette color.
+    static var frames: [Int: CGRect] {
+        get {
+            let raw = AppGroup.defaults.dictionary(forKey: placementsKey) as? [String: [Double]] ?? [:]
+            var result: [Int: CGRect] = [:]
+            for (index, v) in raw where v.count == 4 {
+                if let i = Int(index) { result[i] = CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) }
+            }
+            return result
+        }
+        set {
+            var raw: [String: [Double]] = [:]
+            for (index, r) in newValue {
+                raw[String(index)] = [Double(r.minX), Double(r.minY), Double(r.width), Double(r.height)]
+            }
+            AppGroup.defaults.set(raw, forKey: placementsKey)
+        }
+    }
+
+    /// The slice cut for a measured widget, if there is one.
+    static func measuredSlice(for key: String) -> Data? {
+        guard SceneWallpaper.current != nil || SceneSlices.fromScreenshot,
+              let url = SceneSlices.measuredURL(colorIndex(for: key)) else { return nil }
+        return try? Data(contentsOf: url)
+    }
+
+    static func hsv(hue: Double, saturation: Double, value: Double) -> (red: Double, green: Double, blue: Double) {
+        let h = hue * 6
+        let c = value * saturation
+        let x = c * (1 - abs(h.truncatingRemainder(dividingBy: 2) - 1))
+        let m = value - c
+        let (r, g, b): (Double, Double, Double)
+        switch Int(h) % 6 {
+        case 0: (r, g, b) = (c, x, 0)
+        case 1: (r, g, b) = (x, c, 0)
+        case 2: (r, g, b) = (0, c, x)
+        case 3: (r, g, b) = (0, x, c)
+        case 4: (r, g, b) = (x, 0, c)
+        default: (r, g, b) = (c, 0, x)
+        }
+        return (r + m, g + m, b + m)
     }
 }

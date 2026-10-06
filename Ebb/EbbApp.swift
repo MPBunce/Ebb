@@ -43,6 +43,14 @@ struct EbbApp: App {
     @MainActor
     private static func applyDebugScene() {
         let env = ProcessInfo.processInfo.environment
+        // EBB_MEASURE=start, EBB_MEASURE_FILE / EBB_MATCH_FILE = screenshot paths.
+        if env["EBB_MEASURE"] == "start" { SceneRenderer.startMeasuring() }
+        if let path = env["EBB_MATCH_FILE"], let image = UIImage(contentsOfFile: path) {
+            print("EBB match:", SceneRenderer.matchScreenshot(image, layout: IconLayout.current))
+        }
+        if let path = env["EBB_MEASURE_FILE"], let image = UIImage(contentsOfFile: path) {
+            print("EBB measure:", SceneRenderer.measure(image), WidgetPlacement.frames)
+        }
         guard let raw = env["EBB_SCENE"], let scene = SceneWallpaper(rawValue: raw) else { return }
         let layout = env["EBB_ICONS"].flatMap(IconLayout.init(rawValue:)) ?? IconLayout.current
         let image = SceneRenderer.apply(scene, layout: layout)

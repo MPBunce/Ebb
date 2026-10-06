@@ -184,7 +184,8 @@ struct LauncherWidgetView: View {
             }
         }
         .padding(16)
-        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side))
+        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side),
+                        identity: "apps:" + (entry.configuration.list?.id.uuidString ?? "first"))
     }
 
     @ViewBuilder
@@ -271,19 +272,29 @@ struct LauncherWidget: Widget {
 
 extension View {
     /// Ebb's colors from shared settings, so widgets blend into a matching wallpaper. With a
-    /// scene wallpaper, `spot` picks the slice of the picture that sits behind this widget.
-    func ebbWidgetStyle(spot: WidgetSpot? = nil) -> some View {
-        modifier(EbbWidgetStyle(spot: spot))
+    /// scene wallpaper the widget draws the slice of the picture behind it: the spot Ebb
+    /// measured from a screenshot if it has one, else `spot` from Edit Widget.
+    /// `identity` tells this widget apart from others of the same size (kind and settings).
+    func ebbWidgetStyle(spot: WidgetSpot? = nil, identity: String = "") -> some View {
+        modifier(EbbWidgetStyle(spot: spot, identity: identity))
     }
 }
 
 private struct EbbWidgetStyle: ViewModifier {
     @Environment(\.widgetFamily) private var family
     let spot: WidgetSpot?
+    let identity: String
+
+    private var placementKey: String? {
+        WidgetSize(family).map { WidgetPlacement.key(identity: identity, size: $0) }
+    }
 
     private var sceneSlice: UIImage? {
-        guard let spot, let size = WidgetSize(family),
-              let data = SceneSlices.data(for: size, at: spot) else { return nil }
+        guard let size = WidgetSize(family) else { return nil }
+        if let key = placementKey, let data = WidgetPlacement.measuredSlice(for: key) {
+            return UIImage(data: data)
+        }
+        guard let spot, let data = SceneSlices.data(for: size, at: spot) else { return nil }
         return UIImage(data: data)
     }
 
@@ -292,12 +303,24 @@ private struct EbbWidgetStyle: ViewModifier {
         if isAccessory {
             // Lock Screen widgets are tinted by the system.
             content.containerBackground(.clear, for: .widget)
+        } else if WidgetPlacement.isMeasuring, let key = placementKey {
+            // A solid color Ebb can find in a screenshot of the Home Screen.
+            let c = WidgetPlacement.palette[WidgetPlacement.colorIndex(for: key)]
+            VStack(spacing: 6) {
+                Image(systemName: "viewfinder")
+                Text("Measuring")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(.black.opacity(0.35))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .containerBackground(Color(.sRGB, red: c.red, green: c.green, blue: c.blue), for: .widget)
         } else if let slice = sceneSlice {
             content
                 .fontDesign(WidgetStyle.typeface.design)
                 .foregroundStyle(Appearance.text.color)
                 .containerBackground(for: .widget) {
-                    Image(uiImage: slice).resizable()
+                    Image(uiImage: slice)
+                        .resizable()
                 }
         } else {
             content

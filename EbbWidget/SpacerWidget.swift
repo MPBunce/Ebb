@@ -46,7 +46,7 @@ struct SpacerWidget: Widget {
             }
             .buttonStyle(.plain)
             .accessibilityHidden(true)
-            .ebbWidgetStyle(spot: entry.spot)
+            .ebbWidgetStyle(spot: entry.spot, identity: "spacer")
         }
         .configurationDisplayName("Spacer")
         .description("An empty block in your widget color, to space out your Home Screen.")

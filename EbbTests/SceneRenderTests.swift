@@ -74,4 +74,27 @@ struct SceneRenderTests {
             return
         }
     }
+
+    @Test func findsMeasuringColorsInAScreenshot() {
+        let (points, scale) = SceneRenderer.screenSize()
+        let size = CGSize(width: points.width * scale, height: points.height * scale)
+        let grid = HomeGrid.for(screenWidth: points.width, height: points.height, layout: .large)
+        let frame = grid.frame(.medium, at: WidgetSpot(row: 2, right: false))
+        let index = 5
+        let c = WidgetPlacement.palette[index]
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let shot = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            UIColor(red: 0.85, green: 0.82, blue: 0.75, alpha: 1).setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+            UIColor(red: c.red, green: c.green, blue: c.blue, alpha: 1).setFill()
+            let px = CGRect(x: frame.minX * scale, y: frame.minY * scale, width: frame.width * scale, height: frame.height * scale)
+            UIBezierPath(roundedRect: px, cornerRadius: 23 * scale).fill()
+        }
+        let found = PlacementDetector.frames(in: shot.cgImage!, scale: scale)
+        let f = try! #require(found[index])
+        #expect(abs(f.minX - frame.minX) < 1.5 && abs(f.minY - frame.minY) < 1.5)
+        #expect(abs(f.width - frame.width) < 2 && abs(f.height - frame.height) < 2)
+        #expect(found.count == 1)
+    }
 }

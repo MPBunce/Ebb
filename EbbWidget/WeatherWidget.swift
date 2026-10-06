@@ -140,7 +140,7 @@ struct WeatherWidgetView: View {
             }
         }
         .padding(family.isAccessory ? 0 : 16)
-        .ebbWidgetStyle(spot: WidgetSpot(row: config.row, side: config.side))
+        .ebbWidgetStyle(spot: WidgetSpot(row: config.row, side: config.side), identity: "weather")
         .widgetURL(isReady ? DeepLink.weather.url : DeepLink.home.url)
     }
 

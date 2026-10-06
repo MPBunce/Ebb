@@ -19,6 +19,7 @@ enum SceneRenderer {
         let (points, scale) = screenSize()
         let image = render(scene, size: CGSize(width: points.width * scale, height: points.height * scale))
         writeSlices(of: image, scale: scale, points: points, layout: layout)
+        if let cg = image.cgImage { saveSource(cg) }
         SceneSlices.fromScreenshot = false
         SceneWallpaper.current = scene
         IconLayout.current = layout
@@ -46,6 +47,7 @@ enum SceneRenderer {
         }
         if looksBusy(cg, points: points, scale: scale, layout: layout) { return .failure(.looksBusy) }
         writeSlices(of: UIImage(cgImage: cg), scale: scale, points: points, layout: layout)
+        saveSource(cg)
         SceneSlices.fromScreenshot = true
         IconLayout.current = layout
         WidgetCenter.shared.reloadAllTimelines()
@@ -77,6 +79,89 @@ enum SceneRenderer {
             }
         }
         return jumps > w * h / 40
+    }
+
+    // MARK: Measured placement
+
+    /// The wallpaper image slices are cut from, kept so measured slices can be re-cut.
+    private static var sourceURL: URL? { SceneSlices.folder?.appendingPathComponent("source.png") }
+
+    private static func saveSource(_ cg: CGImage) {
+        guard let url = sourceURL, let data = UIImage(cgImage: cg).pngData() else { return }
+        try? data.write(to: url)
+        cutMeasuredSlices()
+    }
+
+    /// Turns on measuring: every Ebb widget fills with its own bright color.
+    static func startMeasuring() {
+        WidgetPlacement.isMeasuring = true
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    static func stopMeasuring() {
+        WidgetPlacement.isMeasuring = false
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    enum MeasureError: Error, Equatable {
+        case wrongSize, noWidgetsFound, unreadable
+    }
+
+    /// Finds the measuring colors in a Home Screen screenshot and saves each widget's frame.
+    /// Returns how many widgets were found.
+    static func measure(_ image: UIImage) -> Result<Int, MeasureError> {
+        let (points, scale) = screenSize()
+        guard let cg = image.cgImage else { return .failure(.unreadable) }
+        guard abs(CGFloat(cg.width) - points.width * scale) < 2, abs(CGFloat(cg.height) - points.height * scale) < 2 else {
+            return .failure(.wrongSize)
+        }
+        var found = PlacementDetector.frames(in: cg, scale: scale)
+        guard !found.isEmpty else { return .failure(.noWidgetsFound) }
+        // iOS outlines widgets with a thin highlight that hides their outermost pixels, so
+        // snap each one to the exact grid frame it sits on (which also tells us the icon size).
+        found = found.mapValues { snapToGrid($0, points: points) }
+        WidgetPlacement.frames = found
+        stopMeasuring()
+        cutMeasuredSlices()
+        return .success(found.count)
+    }
+
+    private static func snapToGrid(_ frame: CGRect, points: CGSize) -> CGRect {
+        var best: (error: CGFloat, frame: CGRect)?
+        for layout in IconLayout.allCases {
+            let grid = HomeGrid.for(screenWidth: points.width, height: points.height, layout: layout)
+            for size in WidgetSize.allCases {
+                for row in size.startRows {
+                    for right in size == .small ? [false, true] : [false] {
+                        let candidate = grid.frame(size, at: WidgetSpot(row: row, right: right))
+                        let error = max(abs(candidate.minX - frame.minX), abs(candidate.maxX - frame.maxX),
+                                        abs(candidate.minY - frame.minY), abs(candidate.maxY - frame.maxY))
+                        if error < (best?.error ?? .infinity) { best = (error, candidate) }
+                    }
+                }
+            }
+        }
+        if let best, best.error <= 4 { return best.frame }
+        // Not on a known grid (an iPhone Ebb hasn't been measured on): pad by the outline.
+        return frame.insetBy(dx: -0.7, dy: -0.7)
+    }
+
+    /// Cuts a slice of the wallpaper for every measured widget.
+    static func cutMeasuredSlices() {
+        guard let url = sourceURL, let data = try? Data(contentsOf: url),
+              let cg = UIImage(data: data)?.cgImage, let folder = SceneSlices.folder else { return }
+        let scale = screenSize().scale
+        if let old = try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil) {
+            for file in old where file.lastPathComponent.hasPrefix("measured-") { try? FileManager.default.removeItem(at: file) }
+        }
+        for (index, frame) in WidgetPlacement.frames {
+            let pixels = CGRect(x: (frame.minX * scale).rounded(), y: (frame.minY * scale).rounded(),
+                                width: (frame.width * scale).rounded(), height: (frame.height * scale).rounded())
+            guard let crop = cg.cropping(to: pixels), let slice = WidgetSheen.compensated(crop),
+                  let png = UIImage(cgImage: slice).pngData(), let out = SceneSlices.measuredURL(index) else { continue }
+            try? png.write(to: out)
+        }
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Back to a flat color.
@@ -162,6 +247,78 @@ enum SceneRenderer {
     /// A small preview of a scene for the picker.
     static func thumbnail(_ scene: SceneWallpaper) -> UIImage {
         render(scene, size: CGSize(width: 240, height: 520))
+    }
+}
+
+/// Finds Ebb's measuring colors in a screenshot.
+enum PlacementDetector {
+    static func frames(in cg: CGImage, scale: CGFloat) -> [Int: CGRect] {
+        let width = cg.width, height = cg.height
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                                  space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
+              let buf = ctx.data?.assumingMemoryBound(to: UInt8.self) else { return [:] }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        /// The palette index a pixel belongs to, or -1.
+        func label(_ x: Int, _ y: Int) -> Int {
+            let i = (y * width + x) * 4
+            let r = Double(buf[i]) / 255, g = Double(buf[i + 1]) / 255, b = Double(buf[i + 2]) / 255
+            let mx = max(r, g, b), mn = min(r, g, b)
+            guard mx > 0.45, (mx - mn) / mx > 0.55 else { return -1 }
+            var hue: Double
+            let d = mx - mn
+            if mx == r { hue = ((g - b) / d).truncatingRemainder(dividingBy: 6) }
+            else if mx == g { hue = (b - r) / d + 2 }
+            else { hue = (r - g) / d + 4 }
+            hue = (hue / 6 + 1).truncatingRemainder(dividingBy: 1)
+            let count = Double(WidgetPlacement.palette.count)
+            let nearest = (hue * count).rounded()
+            guard abs(hue * count - nearest) < 0.3 else { return -1 }
+            return Int(nearest) % WidgetPlacement.palette.count
+        }
+
+        // Label a coarse grid, then keep each color's largest connected patch.
+        let step = 3
+        let gw = width / step, gh = height / step
+        var grid = [Int](repeating: -1, count: gw * gh)
+        for gy in 0..<gh { for gx in 0..<gw { grid[gy * gw + gx] = label(gx * step, gy * step) } }
+        var seen = [Bool](repeating: false, count: gw * gh)
+        var best: [Int: (count: Int, minX: Int, maxX: Int, minY: Int, maxY: Int)] = [:]
+        for start in 0..<(gw * gh) where grid[start] >= 0 && !seen[start] {
+            let color = grid[start]
+            var stack = [start]
+            seen[start] = true
+            var count = 0, minX = Int.max, maxX = 0, minY = Int.max, maxY = 0
+            while let p = stack.popLast() {
+                count += 1
+                let x = p % gw, y = p / gw
+                minX = min(minX, x); maxX = max(maxX, x); minY = min(minY, y); maxY = max(maxY, y)
+                for (nx, ny) in [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)] where nx >= 0 && ny >= 0 && nx < gw && ny < gh {
+                    let q = ny * gw + nx
+                    if !seen[q] && grid[q] == color { seen[q] = true; stack.append(q) }
+                }
+            }
+            if count > (best[color]?.count ?? 0) { best[color] = (count, minX, maxX, minY, maxY) }
+        }
+
+        // Widgets are at least ~140 points across; app icons and dots are much smaller.
+        let minSide = Int(140 * scale) / step
+        var result: [Int: CGRect] = [:]
+        for (color, patch) in best where patch.maxX - patch.minX >= minSide && patch.maxY - patch.minY >= minSide {
+            // Exact edges, at full resolution, along lines a quarter of the way in (clear of the
+            // rounded corners and the label in the middle).
+            let x0 = patch.minX * step, x1 = patch.maxX * step, y0 = patch.minY * step, y1 = patch.maxY * step
+            let rowY = y0 + (y1 - y0) / 4, colX = x0 + (x1 - x0) / 4
+            func edge(_ range: [Int], _ hit: (Int) -> Bool) -> Int? { range.first(where: hit) }
+            let left = edge(Array(max(0, x0 - step * 2)...x1)) { label($0, rowY) == color } ?? x0
+            let right = edge(Array((x0...min(width - 1, x1 + step * 2)).reversed())) { label($0, rowY) == color } ?? x1
+            let top = edge(Array(max(0, y0 - step * 2)...y1)) { label(colX, $0) == color } ?? y0
+            let bottom = edge(Array((y0...min(height - 1, y1 + step * 2)).reversed())) { label(colX, $0) == color } ?? y1
+            result[color] = CGRect(x: CGFloat(left) / scale, y: CGFloat(top) / scale,
+                                   width: CGFloat(right - left + 1) / scale, height: CGFloat(bottom - top + 1) / scale)
+        }
+        return result
     }
 }
 

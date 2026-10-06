@@ -283,7 +283,7 @@ struct YearWidgetView: View {
             }
         }
         .padding(family.isAccessory ? 0 : 16)
-        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side))
+        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side), identity: "year:" + entry.configuration.period.rawValue)
         .widgetURL(DeepLink.home.url)
     }
 
@@ -519,7 +519,7 @@ struct LifeWidgetView: View {
             }
         }
         .padding(family.isAccessory ? 0 : 16)
-        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side))
+        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side), identity: "life")
         .widgetURL(DeepLink.home.url)
     }
 
@@ -789,7 +789,7 @@ struct TimeSavedWidgetView: View {
             }
         }
         .padding(family.isAccessory ? 0 : 16)
-        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side))
+        .ebbWidgetStyle(spot: WidgetSpot(row: entry.configuration.row, side: entry.configuration.side), identity: "saved")
         .widgetURL(DeepLink.home.url)
     }
 
