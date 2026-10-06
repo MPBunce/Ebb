@@ -56,9 +56,12 @@ enum SceneRenderer {
                 for right in size == .small ? [false, true] : [false] {
                     let spot = WidgetSpot(row: row, right: right)
                     let frame = grid.frame(size, at: spot)
-                    let pixels = CGRect(x: frame.minX * scale, y: frame.minY * scale,
-                                        width: frame.width * scale, height: frame.height * scale).integral
-                    guard let slice = cg.cropping(to: pixels),
+                    // Rounded to the widget's own pixel size, so iOS draws the slice 1:1 with no
+                    // resampling blur (which would soften fine detail and show the edges).
+                    let pixels = CGRect(x: (frame.minX * scale).rounded(), y: (frame.minY * scale).rounded(),
+                                        width: (frame.width * scale).rounded(), height: (frame.height * scale).rounded())
+                    guard let crop = cg.cropping(to: pixels),
+                          let slice = WidgetSheen.compensated(crop),
                           let data = UIImage(cgImage: slice).pngData(),
                           let url = SceneSlices.url(for: size, at: spot) else { continue }
                     try? data.write(to: url)
@@ -105,6 +108,49 @@ enum SceneRenderer {
     /// A small preview of a scene for the picker.
     static func thumbnail(_ scene: SceneWallpaper) -> UIImage {
         render(scene, size: CGSize(width: 240, height: 520))
+    }
+}
+
+/// iOS 26 lays a soft white sheen over the top of every widget (measured on the Home Screen:
+/// about 10% white over the top tenth, fading out by 60% of the height, the same shape at every
+/// size). Slices are darkened by that much beforehand, so once iOS adds it back they match the
+/// wallpaper behind them.
+enum WidgetSheen {
+    /// (fraction of the widget's height from the top, white alpha iOS adds there)
+    static let profile: [(Double, Double)] = [
+        (0, 0.10), (0.083, 0.10), (0.125, 0.093), (0.167, 0.083), (0.223, 0.070), (0.278, 0.057),
+        (0.362, 0.038), (0.445, 0.023), (0.557, 0.0097), (0.696, 0.0018), (0.8, 0),
+    ]
+
+    static func alpha(at t: Double) -> Double {
+        guard let upper = profile.firstIndex(where: { $0.0 >= t }) else { return 0 }
+        if upper == 0 { return profile[0].1 }
+        let (t0, a0) = profile[upper - 1], (t1, a1) = profile[upper]
+        return a0 + (a1 - a0) * (t - t0) / (t1 - t0)
+    }
+
+    /// The slice with the sheen taken out, so iOS putting it back lands on the original colors.
+    static func compensated(_ image: CGImage) -> CGImage? {
+        let width = image.width, height = image.height
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                                      bytesPerRow: width * 4, space: space,
+                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
+              let buffer = context.data?.assumingMemoryBound(to: UInt8.self) else { return nil }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        for row in 0..<height {
+            // Bitmap rows run top to bottom in memory.
+            let a = alpha(at: (Double(row) + 0.5) / Double(height))
+            guard a > 0.0005 else { continue }
+            let offset = row * width * 4
+            for i in stride(from: offset, to: offset + width * 4, by: 4) {
+                for c in 0..<3 {
+                    let value = (Double(buffer[i + c]) - a * 255) / (1 - a)
+                    buffer[i + c] = UInt8(max(0, min(255, value.rounded())))
+                }
+            }
+        }
+        return context.makeImage()
     }
 }
 
@@ -227,9 +273,12 @@ private struct Painter {
     }
 
     // MARK: Scenes
+    //
+    // iOS lifts near-black pixels inside widgets (measured: about +11 to +19 below 32 of 255)
+    // but leaves mid-tones alone, so every scene keeps its darkest colors above that range.
 
     func night() {
-        verticalGradient([(0, "#04060F"), (0.45, "#0F1735"), (0.8, "#22295A"), (1, "#2E3368")])
+        verticalGradient([(0, "#1F2542"), (0.45, "#1E2754"), (0.8, "#2A3266"), (1, "#343B72")])
         stars(count: 260, seed: 7, maxY: h * 0.82)
         let moon = CGPoint(x: w * 0.74, y: h * 0.17)
         glow(at: moon, radius: w * 0.42, hex: "#9FB2FF", alpha: 0.18)
@@ -237,12 +286,12 @@ private struct Painter {
         disc(at: moon, radius: w * 0.075, hex: "#F4ECDA")
         disc(at: CGPoint(x: moon.x - w * 0.02, y: moon.y - w * 0.015), radius: w * 0.016, hex: "#D9CFBC", alpha: 0.45)
         disc(at: CGPoint(x: moon.x + w * 0.025, y: moon.y + w * 0.02), radius: w * 0.011, hex: "#D9CFBC", alpha: 0.4)
-        ridge(base: 0.84, amplitude: 0.035, segments: 14, seed: 3, hex: "#1A1F45")
-        ridge(base: 0.9, amplitude: 0.03, segments: 18, seed: 5, hex: "#0B0E26")
+        ridge(base: 0.84, amplitude: 0.035, segments: 14, seed: 3, hex: "#252B5C")
+        ridge(base: 0.9, amplitude: 0.03, segments: 18, seed: 5, hex: "#1C2148")
     }
 
     func dusk() {
-        verticalGradient([(0, "#1F1430"), (0.3, "#4E2A5C"), (0.55, "#B3566A"), (0.7, "#EE9A62"), (0.78, "#F7C78C")])
+        verticalGradient([(0, "#2E2246"), (0.3, "#4E2A5C"), (0.55, "#B3566A"), (0.7, "#EE9A62"), (0.78, "#F7C78C")])
         let sun = CGPoint(x: w * 0.5, y: h * 0.74)
         glow(at: sun, radius: w * 0.6, hex: "#FFC98C", alpha: 0.35)
         disc(at: sun, radius: w * 0.09, hex: "#FFE3B5", alpha: 0.95)
@@ -250,11 +299,11 @@ private struct Painter {
         ridge(base: 0.74, amplitude: 0.04, segments: 10, seed: 21, hex: "#9A4E73")
         ridge(base: 0.79, amplitude: 0.035, segments: 13, seed: 22, hex: "#673462")
         ridge(base: 0.85, amplitude: 0.03, segments: 16, seed: 23, hex: "#3F214C")
-        ridge(base: 0.92, amplitude: 0.025, segments: 20, seed: 24, hex: "#1E1029")
+        ridge(base: 0.92, amplitude: 0.025, segments: 20, seed: 24, hex: "#2C1D3C")
     }
 
     func aurora() {
-        verticalGradient([(0, "#010409"), (0.5, "#05141F"), (1, "#0A2131")])
+        verticalGradient([(0, "#1D2A38"), (0.5, "#16293A"), (1, "#173040")])
         stars(count: 180, seed: 31, maxY: h * 0.8)
         // Curtains of light: vertical strokes that fade upward from a wandering base.
         let curtains: [(base: Double, reach: Double, phase: Double, hex: String, alpha: CGFloat)] = [
@@ -263,7 +312,7 @@ private struct Painter {
             (0.38, 0.18, 4.0, "#9B6CF6", 0.22),
         ]
         for curtain in curtains {
-            let step = max(w / 360, 1)
+            let step: CGFloat = 1
             var x: CGFloat = 0
             while x < w {
                 let t = Double(x / w)
@@ -273,7 +322,7 @@ private struct Painter {
                 if let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
                                              colors: colors, locations: [0, 1]) {
                     cg.saveGState()
-                    cg.clip(to: CGRect(x: x, y: baseY - reach, width: step + 1, height: reach))
+                    cg.clip(to: CGRect(x: x, y: baseY - reach, width: step, height: reach))
                     cg.drawLinearGradient(gradient, start: CGPoint(x: x, y: baseY),
                                           end: CGPoint(x: x, y: baseY - reach), options: [])
                     cg.restoreGState()
@@ -282,18 +331,18 @@ private struct Painter {
             }
             glow(at: CGPoint(x: w * 0.5, y: h * CGFloat(curtain.base)), radius: w * 0.7, hex: curtain.hex, alpha: curtain.alpha * 0.25)
         }
-        ridge(base: 0.88, amplitude: 0.04, segments: 16, seed: 37, hex: "#03080D")
+        ridge(base: 0.88, amplitude: 0.04, segments: 16, seed: 37, hex: "#101D27")
     }
 
     func forest() {
-        verticalGradient([(0, "#132422"), (0.35, "#2C4842"), (0.6, "#6F8E84"), (0.72, "#A9BEB4")])
+        verticalGradient([(0, "#22362F"), (0.35, "#2C4842"), (0.6, "#6F8E84"), (0.72, "#A9BEB4")])
         glow(at: CGPoint(x: w * 0.3, y: h * 0.2), radius: w * 0.5, hex: "#E7F0E9", alpha: 0.12)
         pines(base: 0.68, height: 0.07, seed: 41, hex: "#7D998E")
         band(y: 0.69, height: 0.06, hex: "#DCE6E0", alpha: 0.35)
         pines(base: 0.75, height: 0.09, seed: 42, hex: "#55736A")
         band(y: 0.76, height: 0.05, hex: "#DCE6E0", alpha: 0.25)
         pines(base: 0.84, height: 0.12, seed: 43, hex: "#2F4A42")
-        pines(base: 0.94, height: 0.15, seed: 44, hex: "#15241F")
+        pines(base: 0.94, height: 0.15, seed: 44, hex: "#20322B")
     }
 
     func dunes() {

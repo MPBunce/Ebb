@@ -11,9 +11,12 @@ import UIKit
 @MainActor
 struct SceneRenderTests {
     @Test func everySceneRendersAtFullSize() throws {
+        let env = ProcessInfo.processInfo.environment
+        let size = CGSize(width: Double(env["EBB_SCENE_PREVIEW_WIDTH"] ?? "") ?? 1179,
+                          height: Double(env["EBB_SCENE_PREVIEW_HEIGHT"] ?? "") ?? 2556)
         for scene in SceneWallpaper.allCases {
-            let image = SceneRenderer.render(scene, size: CGSize(width: 1179, height: 2556))
-            #expect(image.size == CGSize(width: 1179, height: 2556))
+            let image = SceneRenderer.render(scene, size: size)
+            #expect(image.size == size)
             if let folder = ProcessInfo.processInfo.environment["EBB_SCENE_PREVIEW_DIR"] {
                 try image.pngData()?.write(to: URL(fileURLWithPath: folder).appendingPathComponent("\(scene.rawValue).png"))
             }

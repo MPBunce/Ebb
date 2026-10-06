@@ -38,9 +38,9 @@ nonisolated enum SceneWallpaper: String, CaseIterable, Identifiable {
     /// The scene's main tone, used for Ebb's own screens while it's active.
     var baseHex: String {
         switch self {
-        case .night: "#0D1328"
+        case .night: "#151B3A"
         case .dusk: "#3B2346"
-        case .aurora: "#06121A"
+        case .aurora: "#0F1B28"
         case .forest: "#1F3530"
         case .dunes: "#EDD3AE"
         }
