@@ -274,7 +274,7 @@ final class LauncherStore {
     func resist(_ target: LaunchTarget, intention: String?) {
         pendingPause = nil
         log(target, outcome: .resisted, intention: intention)
-        TimeSaved.recordResist()
+        TimeSaved.recordResist(appName: target.name)
         WidgetCenter.shared.reloadAllTimelines()
     }
 

@@ -115,25 +115,68 @@ nonisolated struct LifeProgress {
 /// An honest estimate of time saved: each app you let go during a mindful pause counts
 /// a few minutes (user-adjustable), plus the time spent in focus sessions.
 /// iOS doesn't let apps read real Screen Time totals, so this is clearly an estimate.
+/// Time given back: an estimate, since iPhone doesn't share real Screen Time totals with apps.
+///
+/// Every time Ebb stops an app from opening and you don't open it (backing out of a mindful
+/// pause or breather, or closing the block screen), it counts the time a typical visit to that
+/// app takes. Visit lengths come from published average session times for the big apps; for
+/// everything else Ebb uses the "other apps" setting, 3 minutes by default (the figure the
+/// one sec app uses per prevented open).
 nonisolated struct TimeSaved {
     var since: Date
+    /// Apps let go at a mindful pause or breather.
     var resistedCount: Int
-    var focusMinutes: Int
+    var resistedMinutes: Int
+    /// Times the block screen was closed instead of unlocking the app.
+    var blockedCount: Int
+    var blockedMinutes: Int
     var minutesPerResist: Int
 
-    static let defaultMinutesPerResist = 10
+    static let defaultMinutesPerResist = 3
 
-    var totalMinutes: Int { resistedCount * minutesPerResist + focusMinutes }
+    var totalMinutes: Int { resistedMinutes + blockedMinutes }
     var hours: Double { Double(totalMinutes) / 60 }
 
+    private enum Key {
+        static let resistedMinutes = "timeSavedResistedMinutes"
+        static let blockedCount = "timeSavedBlockedCount"
+        static let blockedMinutes = "timeSavedBlockedMinutes"
+    }
+
+    /// Typical minutes per visit, from average session lengths (Instagram 2:44, Facebook 3:42,
+    /// TikTok 5:56, YouTube 7:25, X and Pinterest 2:11), rounded.
+    static let typicalVisit: [String: Int] = [
+        "youtube": 7, "tiktok": 6, "facebook": 4, "instagram": 3, "x": 2, "twitter": 2, "pinterest": 2,
+    ]
+
+    /// Minutes a visit to `appName` typically takes, or the "other apps" setting.
+    static func minutes(for appName: String?) -> Int {
+        if let name = appName?.lowercased().trimmingCharacters(in: .whitespaces), let m = typicalVisit[name] { return m }
+        return AppGroup.defaults.object(forKey: AppGroup.Key.minutesPerResist) as? Int ?? defaultMinutesPerResist
+    }
+
     static func load() -> TimeSaved {
+        migrateIfNeeded()
         let defaults = AppGroup.defaults
         return TimeSaved(
             since: defaults.object(forKey: AppGroup.Key.installDate) as? Date ?? .now,
             resistedCount: defaults.integer(forKey: AppGroup.Key.lifetimeResisted),
-            focusMinutes: defaults.integer(forKey: AppGroup.Key.lifetimeFocusMinutes),
+            resistedMinutes: defaults.integer(forKey: Key.resistedMinutes),
+            blockedCount: defaults.integer(forKey: Key.blockedCount),
+            blockedMinutes: defaults.integer(forKey: Key.blockedMinutes),
             minutesPerResist: defaults.object(forKey: AppGroup.Key.minutesPerResist) as? Int ?? defaultMinutesPerResist
         )
+    }
+
+    /// Earlier versions stored a count and multiplied it by one setting, and counted focus
+    /// sessions. Keep what was let go (at the old setting) and drop focus time.
+    private static func migrateIfNeeded() {
+        let defaults = AppGroup.defaults
+        guard defaults.object(forKey: Key.resistedMinutes) == nil else { return }
+        let count = defaults.integer(forKey: AppGroup.Key.lifetimeResisted)
+        let perResist = defaults.object(forKey: AppGroup.Key.minutesPerResist) as? Int ?? 10
+        defaults.set(count * perResist, forKey: Key.resistedMinutes)
+        defaults.removeObject(forKey: AppGroup.Key.lifetimeFocusMinutes)
     }
 
     /// Records the first launch so "since" has a start date.
@@ -144,16 +187,20 @@ nonisolated struct TimeSaved {
         }
     }
 
-    static func recordResist() {
+    /// You backed out of an app at a mindful pause or breather.
+    static func recordResist(appName: String? = nil) {
+        migrateIfNeeded()
         let defaults = AppGroup.defaults
         defaults.set(defaults.integer(forKey: AppGroup.Key.lifetimeResisted) + 1, forKey: AppGroup.Key.lifetimeResisted)
+        defaults.set(defaults.integer(forKey: Key.resistedMinutes) + minutes(for: appName), forKey: Key.resistedMinutes)
     }
 
-    /// Adds (or with a negative value, refunds) focus minutes.
-    static func recordFocus(minutes: Int) {
+    /// You closed the block screen instead of unlocking the app.
+    static func recordBlockedClose() {
+        migrateIfNeeded()
         let defaults = AppGroup.defaults
-        let current = defaults.integer(forKey: AppGroup.Key.lifetimeFocusMinutes)
-        defaults.set(max(current + minutes, 0), forKey: AppGroup.Key.lifetimeFocusMinutes)
+        defaults.set(defaults.integer(forKey: Key.blockedCount) + 1, forKey: Key.blockedCount)
+        defaults.set(defaults.integer(forKey: Key.blockedMinutes) + minutes(for: nil), forKey: Key.blockedMinutes)
     }
 
     var formattedHours: String {

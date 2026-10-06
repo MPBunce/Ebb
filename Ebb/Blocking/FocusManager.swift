@@ -191,7 +191,6 @@ final class FocusManager {
         // Shield immediately rather than waiting for the monitor to wake up.
         ShieldController.sessionEnd = end
         ShieldController.activate(.session)
-        TimeSaved.recordFocus(minutes: minutes)
         do {
             center.stopMonitoring([.session])
             try center.startMonitoring(.session, during: schedule)
@@ -206,10 +205,6 @@ final class FocusManager {
     var canEndSession: Bool { !strictSessions }
 
     func endSession() {
-        // Only count the part of the session that actually happened.
-        if let end = ShieldController.sessionEnd, end > .now {
-            TimeSaved.recordFocus(minutes: -Int(end.timeIntervalSinceNow / 60))
-        }
         center.stopMonitoring([.session])
         ShieldController.sessionEnd = nil
         ShieldController.deactivate(.session)

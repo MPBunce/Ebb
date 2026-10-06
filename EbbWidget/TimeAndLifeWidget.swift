@@ -84,14 +84,13 @@ struct TimeAndLifeWidgetView: View {
                     .lineLimit(1)
             }
             Caption(text: summary(saved))
-            let letGoMinutes = saved.resistedCount * saved.minutesPerResist
-            let letGoShare = saved.totalMinutes == 0 ? 0 : Double(letGoMinutes) / Double(saved.totalMinutes)
+            let letGoShare = saved.totalMinutes == 0 ? 1 : Double(saved.resistedMinutes) / Double(saved.totalMinutes)
             ThinBar(value: letGoShare, height: 8)
                 .padding(.vertical, 6)
             HStack {
-                Caption(text: "\(Self.short(letGoMinutes)) from apps let go")
+                Caption(text: "\(Self.short(saved.resistedMinutes)) at mindful pauses")
                 Spacer()
-                Caption(text: "\(Self.short(saved.focusMinutes)) focusing")
+                Caption(text: "\(Self.short(saved.blockedMinutes)) at the block screen")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

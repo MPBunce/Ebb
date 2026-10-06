@@ -259,10 +259,21 @@ struct WidgetMathTests {
         #expect(!life.breakdown(remaining: false, at: now).isExtraTime)
     }
 
-    @Test func timeSavedCombinesLetGoAndFocus() {
-        let saved = TimeSaved(since: .now, resistedCount: 6, focusMinutes: 90, minutesPerResist: 10)
+    @Test func timeSavedAddsPausesAndBlockScreen() {
+        let saved = TimeSaved(since: .now, resistedCount: 6, resistedMinutes: 120, blockedCount: 10,
+                              blockedMinutes: 30, minutesPerResist: 3)
         #expect(saved.totalMinutes == 150)
         #expect(saved.formattedHours == "2.5")
+    }
+
+    @Test func typicalVisitLengths() {
+        #expect(TimeSaved.minutes(for: "YouTube") == 7)
+        #expect(TimeSaved.minutes(for: "Instagram") == 3)
+        // Unknown apps use the "other apps" setting.
+        let stored = AppGroup.defaults.object(forKey: AppGroup.Key.minutesPerResist)
+        defer { AppGroup.defaults.set(stored, forKey: AppGroup.Key.minutesPerResist) }
+        AppGroup.defaults.set(5, forKey: AppGroup.Key.minutesPerResist)
+        #expect(TimeSaved.minutes(for: "Duolingo") == 5)
     }
 
     @Test func yearProgressBounds() {

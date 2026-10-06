@@ -878,11 +878,10 @@ struct TimeSavedWidgetView: View {
     }
 
     private func breakdown(_ saved: TimeSaved) -> some View {
-        let letGoMinutes = saved.resistedCount * saved.minutesPerResist
         let total = amount(saved.totalMinutes)
-        let letGo = amount(letGoMinutes)
-        let focus = amount(saved.focusMinutes)
-        let letGoShare = saved.totalMinutes == 0 ? 0 : Double(letGoMinutes) / Double(saved.totalMinutes)
+        let letGo = amount(saved.resistedMinutes)
+        let blocked = amount(saved.blockedMinutes)
+        let letGoShare = saved.totalMinutes == 0 ? 1 : Double(saved.resistedMinutes) / Double(saved.totalMinutes)
 
         return VStack(alignment: align.horizontal, spacing: family == .systemSmall ? 6 : 10) {
             // Small widgets put the unit under the number so big totals have room.
@@ -900,7 +899,7 @@ struct TimeSavedWidgetView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
-            // A split bar: let-gos, then focus time.
+            // A split bar: mindful pauses, then the block screen.
             GeometryReader { proxy in
                 HStack(spacing: 2) {
                     Capsule().fill(.primary).frame(width: proxy.size.width * letGoShare)
@@ -909,13 +908,13 @@ struct TimeSavedWidgetView: View {
             }
             .frame(height: 8)
             let small = family == .systemSmall
-            row(small ? "Let go" : "Apps let go", detail: small ? nil : "\(saved.resistedCount.formatted())×",
+            row(small ? "Paused" : "Mindful pauses", detail: small ? nil : "\(saved.resistedCount.formatted())×",
                 value: "\(letGo.value) \(small ? shortUnit : letGo.unit)", strong: true)
-            row(small ? "Focus" : "Focus sessions", detail: nil,
-                value: "\(focus.value) \(small ? shortUnit : focus.unit)", strong: false)
+            row(small ? "Blocked" : "Block screen", detail: small ? nil : "\(saved.blockedCount.formatted())×",
+                value: "\(blocked.value) \(small ? shortUnit : blocked.unit)", strong: false)
             if family == .systemLarge {
                 Spacer(minLength: 0)
-                Caption(text: "Counting \(saved.minutesPerResist) min per app let go, \(since(saved)).")
+                Caption(text: "A typical visit to each app you didn't open, \(since(saved)).")
             }
         }
     }

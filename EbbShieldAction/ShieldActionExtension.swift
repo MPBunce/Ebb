@@ -19,7 +19,11 @@ final class ShieldActionExtension: ShieldActionDelegate {
                 // Keep the shield up; the notification takes the user to Ebb.
                 completionHandler(.defer)
             }
-        default:
+        case .primaryButtonPressed:
+            // Closed the block screen instead of unlocking: an app visit avoided.
+            TimeSaved.recordBlockedClose()
+            completionHandler(.close)
+        @unknown default:
             completionHandler(.close)
         }
     }

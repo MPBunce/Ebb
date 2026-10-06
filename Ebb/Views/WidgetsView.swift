@@ -283,11 +283,11 @@ struct WidgetsView: View {
 
     private var timeSavedSection: some View {
         Section {
-            Stepper("\(minutesPerResist) min per app let go", value: $minutesPerResist, in: 1...60)
+            Stepper("Other apps: \(minutesPerResist) min a visit", value: $minutesPerResist, in: 1...30)
         } header: {
             Text("Time Saved widget")
         } footer: {
-            Text("iPhone doesn't share real Screen Time totals with apps, so this is an estimate: each app you back out of during a mindful pause, plus time in focus sessions.")
+            Text("An estimate, since iPhone doesn't share real Screen Time totals: each time Ebb stops an app and you don't open it (at a mindful pause, a breather, or the block screen), it counts a typical visit. YouTube 7 min, TikTok 6, Facebook 4, Instagram 3, X and Pinterest 2, based on average session lengths; other apps use this setting.")
         }
     }
 
