@@ -24,6 +24,7 @@ struct AppearanceView: View {
     var body: some View {
         Form {
             ScenesSection()
+            ScreenMatchSection()
 
             Section {
                 HStack(spacing: 16) {

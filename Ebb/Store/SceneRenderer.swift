@@ -19,6 +19,7 @@ enum SceneRenderer {
         let (points, scale) = screenSize()
         let image = render(scene, size: CGSize(width: points.width * scale, height: points.height * scale))
         writeSlices(of: image, scale: scale, points: points, layout: layout)
+        SceneSlices.fromScreenshot = false
         SceneWallpaper.current = scene
         IconLayout.current = layout
         AppGroup.defaults.set(scene.baseHex, forKey: AppGroup.Key.backgroundHex)
@@ -27,16 +28,69 @@ enum SceneRenderer {
         return image
     }
 
+    enum MatchError: Error, Equatable {
+        case wrongSize(expected: CGSize, got: CGSize)
+        case unreadable
+        case looksBusy
+    }
+
+    /// Cuts the widget slices from a screenshot of an empty Home Screen page, so widgets
+    /// match the wallpaper exactly as iOS shows it.
+    static func matchScreenshot(_ image: UIImage, layout: IconLayout) -> Result<Void, MatchError> {
+        let (points, scale) = screenSize()
+        guard let cg = image.cgImage else { return .failure(.unreadable) }
+        let expected = CGSize(width: points.width * scale, height: points.height * scale)
+        let got = CGSize(width: cg.width, height: cg.height)
+        guard abs(got.width - expected.width) < 2, abs(got.height - expected.height) < 2 else {
+            return .failure(.wrongSize(expected: expected, got: got))
+        }
+        if looksBusy(cg, points: points, scale: scale, layout: layout) { return .failure(.looksBusy) }
+        writeSlices(of: UIImage(cgImage: cg), scale: scale, points: points, layout: layout)
+        SceneSlices.fromScreenshot = true
+        IconLayout.current = layout
+        WidgetCenter.shared.reloadAllTimelines()
+        return .success(())
+    }
+
+    /// True when the widget area has hard edges (icons or widgets left on the page), which
+    /// would end up baked into the widgets.
+    private static func looksBusy(_ cg: CGImage, points: CGSize, scale: CGFloat, layout: IconLayout) -> Bool {
+        let grid = HomeGrid.for(screenWidth: points.width, height: points.height, layout: layout)
+        let area = grid.frame(.large, at: WidgetSpot(row: 0, right: false))
+            .union(grid.frame(.large, at: WidgetSpot(row: 2, right: false)))
+        let w = 60, h = 130
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: space, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
+              let crop = cg.cropping(to: CGRect(x: area.minX * scale, y: area.minY * scale,
+                                                width: area.width * scale, height: area.height * scale)),
+              let buf = ctx.data?.assumingMemoryBound(to: UInt8.self) else { return false }
+        ctx.interpolationQuality = .medium
+        ctx.draw(crop, in: CGRect(x: 0, y: 0, width: w, height: h))
+        // Count sharp jumps between neighbouring samples; wallpapers are smooth at this scale.
+        var jumps = 0
+        for y in 0..<h {
+            for x in 1..<w {
+                let i = (y * w + x) * 4, j = i - 4
+                let d = abs(Int(buf[i]) - Int(buf[j])) + abs(Int(buf[i + 1]) - Int(buf[j + 1])) + abs(Int(buf[i + 2]) - Int(buf[j + 2]))
+                if d > 120 { jumps += 1 }
+            }
+        }
+        return jumps > w * h / 40
+    }
+
     /// Back to a flat color.
     static func clear() {
         SceneWallpaper.current = nil
+        SceneSlices.fromScreenshot = false
         if let folder = SceneSlices.folder { try? FileManager.default.removeItem(at: folder) }
         WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Re-cuts the slices, e.g. after changing the icon size.
     static func refreshSlices() {
-        guard let scene = SceneWallpaper.current else { return }
+        // Slices from a screenshot can't be re-cut without it; keep them.
+        guard let scene = SceneWallpaper.current, !SceneSlices.fromScreenshot else { return }
         apply(scene, layout: IconLayout.current)
     }
 

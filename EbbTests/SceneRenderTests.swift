@@ -32,4 +32,46 @@ struct SceneRenderTests {
         #expect(abs(large.height - 359.17) < 0.5)
         #expect(abs(large.width - 359.67) < 0.01)
     }
+
+    @Test func matchesAnEmptyHomeScreenScreenshot() throws {
+        let (points, scale) = SceneRenderer.screenSize()
+        let size = CGSize(width: points.width * scale, height: points.height * scale)
+        let screenshot = SceneRenderer.render(.forest, size: size)
+        let result = SceneRenderer.matchScreenshot(screenshot, layout: .small)
+        #expect((try? result.get()) != nil)
+        #expect(SceneSlices.fromScreenshot)
+        #expect(SceneSlices.data(for: .large, at: WidgetSpot(row: 2, right: false)) != nil)
+        SceneRenderer.clear()
+        #expect(!SceneSlices.fromScreenshot)
+    }
+
+    @Test func rejectsScreenshotsFromOtherScreens() {
+        let image = SceneRenderer.render(.dunes, size: CGSize(width: 1000, height: 2000))
+        guard case .failure(.wrongSize) = SceneRenderer.matchScreenshot(image, layout: .small) else {
+            Issue.record("Expected a wrong-size failure")
+            return
+        }
+    }
+
+    @Test func rejectsScreenshotsWithIconsOnThem() {
+        let (points, scale) = SceneRenderer.screenSize()
+        let size = CGSize(width: points.width * scale, height: points.height * scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let busy = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
+            UIColor(red: 0.1, green: 0.2, blue: 0.2, alpha: 1).setFill()
+            ctx.fill(CGRect(origin: .zero, size: size))
+            UIColor.white.setFill()
+            // A grid of app-icon-like squares.
+            for row in 0..<6 {
+                for col in 0..<4 {
+                    ctx.fill(CGRect(x: 80 + col * 270, y: 260 + row * 290, width: 190, height: 190))
+                }
+            }
+        }
+        guard case .failure(.looksBusy) = SceneRenderer.matchScreenshot(busy, layout: .small) else {
+            Issue.record("Expected a busy-screenshot failure")
+            return
+        }
+    }
 }

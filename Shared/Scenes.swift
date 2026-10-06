@@ -149,8 +149,15 @@ nonisolated enum SceneSlices {
     }
 
     /// The slice for this widget, if a scene is active.
+    /// Slices cut from a screenshot of the user's own Home Screen, so they match exactly
+    /// what iOS draws (its zoom, dimming and colors), for a scene or any wallpaper.
+    static var fromScreenshot: Bool {
+        get { AppGroup.defaults.bool(forKey: "sceneSlicesFromScreenshot") }
+        set { AppGroup.defaults.set(newValue, forKey: "sceneSlicesFromScreenshot") }
+    }
+
     static func data(for size: WidgetSize, at spot: WidgetSpot) -> Data? {
-        guard SceneWallpaper.current != nil, let url = url(for: size, at: spot) else { return nil }
+        guard SceneWallpaper.current != nil || fromScreenshot, let url = url(for: size, at: spot) else { return nil }
         return try? Data(contentsOf: url)
     }
 }
