@@ -94,6 +94,7 @@ struct AppWidgetEditor: View {
 /// What Ebb Plus includes, with buying and restoring it.
 struct EbbPlusView: View {
     @Bindable private var plus = PlusStore.shared
+    @State private var redeemingCode = false
 
     var body: some View {
         List {
@@ -141,6 +142,19 @@ struct EbbPlusView: View {
                         }
                     }
                     .disabled(plus.isPurchasing || plus.isRestoring)
+
+                    // Friends & family offer codes (or any App Store offer code) for Plus.
+                    Button {
+                        redeemingCode = true
+                    } label: {
+                        Text("Redeem a Code")
+                    }
+                    .disabled(plus.isPurchasing || plus.isRestoring)
+                    .offerCodeRedemption(isPresented: $redeemingCode) { _ in
+                        // The purchase also arrives through Transaction.updates; this just
+                        // makes sure Plus switches on right away.
+                        Task { await plus.refreshEntitlement() }
+                    }
                 } footer: {
                     Text("A one-time purchase, not a subscription. It works on all your devices signed in with the same Apple Account.")
                 }
