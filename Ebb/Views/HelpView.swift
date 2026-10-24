@@ -328,7 +328,7 @@ struct CommonQuestion: Identifiable {
         CommonQuestion(
             icon: "leaf",
             question: "How is Time Saved counted?",
-            answer: "iPhone doesn't share real Screen Time totals with apps, so it's an estimate: a few minutes (you choose how many in **Widgets**) for each app you let go during a mindful pause, plus your time in focus sessions."
+            answer: "iPhone doesn't share real Screen Time totals with apps, so it's an estimate. Each time Ebb stops an app and you don't open it (at a mindful pause, a breather, or the block screen), it counts a typical visit: YouTube 7 min, TikTok 6, Facebook 4, Instagram 3, X and Pinterest 2, based on average session lengths. Other apps use the setting in **Widgets**, 3 minutes by default."
         ),
         CommonQuestion(
             icon: "hourglass",

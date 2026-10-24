@@ -759,7 +759,7 @@ struct SavedProvider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: SavedConfigurationIntent, in context: Context) async -> Timeline<SavedEntry> {
-        // Ebb also reloads this whenever you let an app go or start a focus session.
+        // Ebb also reloads this whenever an app is let go or the block screen is closed.
         steppedEntries(step: 6 * 60 * 60) { SavedEntry(date: $0, configuration: configuration) }
     }
 }
@@ -986,7 +986,7 @@ struct TimeSavedWidget: Widget {
             TimeSavedWidgetView(entry: entry)
         }
         .configurationDisplayName("Time Saved")
-        .description("Time Ebb has given back, from apps you let go and focus sessions. Edit to change style and units.")
+        .description("Time Ebb has given back: a typical visit for each app you didn't open. Edit to change style and units.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
         .contentMarginsDisabled()
     }

@@ -225,7 +225,8 @@ private struct WelcomePage: View {
                 Label("Plain-text widgets that open your apps", systemImage: "textformat")
                 Label("A wallpaper that makes widgets disappear", systemImage: "rectangle.on.rectangle")
                 Label("A mindful pause before distracting apps", systemImage: "hourglass")
-                Label("Focus sessions and daily limits", systemImage: "moon")
+                Label("Focus schedules that block the apps you choose", systemImage: "moon")
+                Label("Weather, plus habits and a to-do list with Ebb Plus", systemImage: "checklist")
             }
             .font(.callout)
             Text("Setup takes about two minutes.")
@@ -404,7 +405,7 @@ private struct FocusPage: View {
             message: "Ebb can use Screen Time to block apps during focus sessions, overnight, or after a daily limit. Apple keeps your choices private: Ebb never sees which apps you pick."
         ) {
             if focus.isAuthorized {
-                Label("Screen Time is allowed. Set up blocking from the moon icon on Ebb's home.", systemImage: "checkmark.circle")
+                Label("Screen Time is allowed. Set up blocking in Focus on Ebb's main screen.", systemImage: "checkmark.circle")
                     .foregroundStyle(.secondary)
             } else {
                 Button {
@@ -432,10 +433,10 @@ private struct DonePage: View {
             message: "From here on, your Home Screen widgets are how you use Ebb. This app is where you set them up and check in."
         ) {
             VStack(alignment: .leading, spacing: 14) {
-                Label("The checklist on Ebb's main screen tracks anything left to set up.", systemImage: "checklist")
+                Label("Help & Setup on Ebb's main screen tracks anything left to set up.", systemImage: "checklist")
                 Label("Change apps, colors, and widget style anytime.", systemImage: "slider.horizontal.3")
-                Label("Focus is where you set work time and blocking.", systemImage: "moon")
-                Label("Replay this walkthrough from Settings.", systemImage: "arrow.counterclockwise")
+                Label("Focus is where you schedule blocking.", systemImage: "moon")
+                Label("Replay this walkthrough from Help & Setup.", systemImage: "arrow.counterclockwise")
             }
             .font(.callout)
         }

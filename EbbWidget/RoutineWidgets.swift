@@ -239,7 +239,7 @@ struct TodoWidgetView: View {
         let shown = TodoStore.shown(items, limit: limit)
         VStack(alignment: .leading, spacing: family == .systemLarge ? 11 : 7) {
             HStack(alignment: .center) {
-                Text("To-do").font(.caption).opacity(0.6)
+                Text("To-Do").font(.caption).opacity(0.6)
                 Spacer()
                 // Widgets can't take typing, so + opens Ebb ready to add one.
                 Link(destination: DeepLink.addTodo.url) {

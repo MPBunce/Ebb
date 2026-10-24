@@ -22,7 +22,7 @@ struct TimeAndLifeProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TimeAndLifeEntry>) -> Void) {
-        // Ebb also reloads widgets whenever you let an app go or finish a focus session.
+        // Ebb also reloads widgets whenever an app is let go.
         completion(steppedEntries(step: 60 * 60) { TimeAndLifeEntry(date: $0) })
     }
 }

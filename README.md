@@ -20,7 +20,7 @@ iOS doesn't let apps replace the Home Screen, so Ebb builds one: your apps as pl
 - **Weather**: now, the next hours, or the week, for your location or a city you pick (Apple Weather).
 - **Year**: progress through today, this week, month, or year, as a percent, bar, dots, ring, or countdown.
 - **Life**: years, weeks, and days left of an average life (CDC 2023 US averages), with a "+" for extra time and *memento mori* on larger sizes.
-- **Time Saved**: hours given back from apps you let go and focus sessions, including a full-width Big style.
+- **Time Saved**: hours given back, counting a typical visit (by app) for each app Ebb stops that you don't open, including a full-width Big style.
 - **Habits** (Plus): tap to check off today, with a week of dots and your streak.
 - **To-Do** (Plus): check things off right on the Home Screen. Finished items stay crossed out and clear at midnight. **+** opens Ebb ready to type.
 - **Time & Life** (Plus): time given back and life left in one large widget for the Today View.
