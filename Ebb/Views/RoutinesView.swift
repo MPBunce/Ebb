@@ -9,7 +9,7 @@
 import SwiftUI
 import WidgetKit
 
-private func reloadRoutineWidgets() {
+func reloadRoutineWidgets() {
     WidgetCenter.shared.reloadTimelines(ofKind: "EbbHabits")
     WidgetCenter.shared.reloadTimelines(ofKind: "EbbTodo")
 }
@@ -985,5 +985,60 @@ struct TodoListView: View {
     private func save() {
         TodoStore.save(items)
         reloadRoutineWidgets()
+    }
+}
+
+/// A habit on the main screen: tick it (or count one more) without leaving.
+struct DashboardHabitRow: View {
+    let habit: Habit
+    let onToggle: () -> Void
+
+    var body: some View {
+        let done = habit.isDone(on: .now)
+        HStack(spacing: 12) {
+            Button(action: onToggle) {
+                HabitCheck(habit: habit, day: .now)
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .disabled(habit.auto != nil)
+            .accessibilityLabel(habit.auto != nil ? "Automatic" : habit.isCounted ? "Add one" : done ? "Mark not done" : "Mark done")
+            VStack(alignment: .leading, spacing: 2) {
+                Text(habit.name)
+                    .foregroundStyle(done ? .secondary : .primary)
+                if let line = detail {
+                    Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 6)
+            HStack(spacing: 3) {
+                ForEach(DayKey.days(endingOn: .now, count: 6), id: \.self) { day in
+                    Circle()
+                        .fill(habit.isDone(on: day) ? Color.indigo : Color.secondary.opacity(habit.schedule.isScheduled(day) ? 0.25 : 0.08))
+                        .frame(width: 6, height: 6)
+                }
+            }
+            .accessibilityHidden(true)
+            let streak = habit.streak(asOf: .now)
+            if streak > 0 {
+                HStack(spacing: 2) {
+                    Image(systemName: "flame.fill").font(.caption2)
+                    Text(habit.streakText(short: true))
+                }
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 36, alignment: .trailing)
+                .accessibilityLabel("\(habit.streakText()) streak")
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    /// The count so far, or the tiny version as a nudge while it isn't done.
+    private var detail: String? {
+        if habit.isCounted && !habit.isDone(on: .now) { return "\(habit.count(on: .now)) of \(habit.target)" }
+        if !habit.isDone(on: .now), let tiny = habit.tinyVersion, !tiny.isEmpty { return "At least: \(tiny.lowercased())" }
+        return habit.cueText
     }
 }

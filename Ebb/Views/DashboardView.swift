@@ -2,8 +2,9 @@
 //  DashboardView.swift
 //  Ebb
 //
-//  The main screen. Ebb's real home is the iPhone Home Screen, built from its widgets,
-//  so this screen is for setting that up and keeping an eye on it.
+//  The main screen, about today: the focus that's on, habits and to-dos to tick off right
+//  here, and what Ebb has saved. Setting up the Home Screen sits at the bottom and shrinks
+//  to two rows once it's done.
 //
 
 import SwiftUI
@@ -19,6 +20,10 @@ struct DashboardView: View {
     @AppStorage(AppGroup.Key.wallpaperSet, store: AppGroup.defaults) private var wallpaperSet = false
 
     @State private var widgetsAdded = false
+    @State private var habits = HabitStore.load()
+    @State private var todos = TodoStore.load()
+    /// Shown when Screen Time access was declined, instead of nothing happening.
+    @State private var showingBlockingHelp = false
     /// The focus being created or edited from the main screen.
     @State private var editingFocus: WorkPeriod?
     @State private var path: [DashboardRoute] = []
@@ -38,32 +43,17 @@ struct DashboardView: View {
 
         NavigationStack(path: $path) {
             List {
-                Section {
-                    NavigationLink(value: DashboardRoute.widgets) {
-                        SettingsRow(icon: "square.grid.2x2.fill", tint: .indigo, title: "Widgets",
-                                    subtitle: "Everything on your Home Screen: apps, style, colors, and extras")
-                    }
-                    NavigationLink(value: DashboardRoute.apps) {
-                        SettingsRow(icon: "square.stack", tint: .blue, title: "Apps",
-                                    subtitle: "Add apps, fix links, choose mindful pauses")
-                    }
-                } header: {
-                    Text("Home Screen")
-                }
+                Text(Date.now, format: .dateTime.weekday(.wide).month(.wide).day())
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 0))
 
                 focusSection
-                routinesSection
+                habitsSection
+                todosSection
                 todaySection
-
-                Section {
-                    NavigationLink(value: DashboardRoute.help) {
-                        SettingsRow(icon: isSetUp ? "questionmark" : "checklist", tint: isSetUp ? .gray : .green,
-                                    title: "Help & Setup",
-                                    subtitle: isSetUp
-                                        ? "Guides and common questions"
-                                        : "Setup: \(checklist.requiredDone) of \(checklist.requiredTotal) done · guides and common questions")
-                    }
-                }
+                homeScreenSection
             }
             .navigationDestination(for: DashboardRoute.self) { destination(for: $0) }
             .navigationTitle("Ebb")
@@ -83,7 +73,22 @@ struct DashboardView: View {
         .onChange(of: path) { _, newPath in savedPath = newPath.map(\.rawValue).joined(separator: ",") }
         .onChange(of: router.sheet) { _, sheet in savedSheet = sheet?.rawValue ?? "" }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await refreshWidgets() } }
+            if phase == .active {
+                Task { await refreshWidgets() }
+                reloadRoutines()
+            }
+        }
+        .onChange(of: path) { _, newPath in
+            // Back from Habits or To-Do: show what changed there.
+            if newPath.isEmpty { reloadRoutines() }
+        }
+        .alert("Screen Time is off", isPresented: $showingBlockingHelp) {
+            Button("Open Settings") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            Button("Not now", role: .cancel) {}
+        } message: {
+            Text("Ebb needs Screen Time access to block apps. Turn it on in Settings › Screen Time, or tap Turn on blocking again. Apple only gives Ebb anonymous tokens, never your activity.")
         }
         .sheet(item: $editingFocus) { period in
             NavigationStack {
@@ -167,41 +172,146 @@ struct DashboardView: View {
         #endif
     }
 
-    private var routinesSection: some View {
+    // MARK: Habits & To-Do, ticked off right here
+
+    private var dueHabits: [Habit] { habits.filter { $0.schedule.isScheduled(.now) } }
+    private var todayTodos: [TodoItem] { TodoStore.ordered(todos.filter { !$0.isSomeday }) }
+
+    private func reloadRoutines() {
+        habits = HabitStore.load()
+        todos = TodoStore.load()
+    }
+
+    @ViewBuilder
+    private var habitsSection: some View {
         Section {
-            NavigationLink(value: DashboardRoute.habits) {
-                HStack {
-                    SettingsRow(icon: "checklist", tint: .green, title: "Habits", subtitle: habitsSummary)
-                    if !store.isPlus { PlusBadge() }
+            if !store.isPlus {
+                NavigationLink(value: DashboardRoute.habits) {
+                    HStack {
+                        SettingsRow(icon: "checklist", tint: .green, title: "Habits",
+                                    subtitle: "Small habits, tracked on your Home Screen")
+                        PlusBadge()
+                    }
                 }
-            }
-            NavigationLink(value: DashboardRoute.todos) {
-                HStack {
-                    SettingsRow(icon: "checkmark.circle", tint: .orange, title: "To-Do", subtitle: todosSummary)
-                    if !store.isPlus { PlusBadge() }
+            } else if dueHabits.isEmpty {
+                NavigationLink(value: DashboardRoute.habits) {
+                    Text(habits.isEmpty ? "Add a small habit to start" : "A day off from your habits")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                ForEach(dueHabits.prefix(6)) { habit in
+                    DashboardHabitRow(habit: habit) {
+                        HabitStore.toggle(id: habit.id)
+                        reloadRoutineWidgets()
+                        withAnimation { habits = HabitStore.load() }
+                    }
                 }
             }
         } header: {
-            Text("Habits & To-Do")
+            sectionHeader("Habits", route: .habits,
+                          detail: store.isPlus && !dueHabits.isEmpty
+                              ? "\(dueHabits.filter { $0.isDone(on: .now) }.count) of \(dueHabits.count)" : nil)
         }
     }
 
-    private var habitsSummary: String {
-        guard store.isPlus else { return "Small habits, tracked on your Home Screen" }
-        let habits = HabitStore.load()
-        guard !habits.isEmpty else { return "Small habits, tied to what you already do" }
-        let due = habits.filter { $0.schedule.isScheduled(.now) }
-        guard !due.isEmpty else { return "A day off" }
-        let done = due.filter { $0.isDone(on: .now) }.count
-        return "\(done) of \(due.count) done today"
+    @ViewBuilder
+    private var todosSection: some View {
+        Section {
+            if !store.isPlus {
+                NavigationLink(value: DashboardRoute.todos) {
+                    HStack {
+                        SettingsRow(icon: "checkmark.circle", tint: .orange, title: "To-Do",
+                                    subtitle: "A to-do list that clears finished items every night")
+                        PlusBadge()
+                    }
+                }
+            } else if todayTodos.isEmpty {
+                Button {
+                    router.focusNewTodo = true
+                    path = [.todos]
+                } label: {
+                    Text("Nothing to do. Add something")
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                ForEach(todayTodos.prefix(6)) { item in
+                    Button {
+                        TodoStore.toggle(id: item.id)
+                        reloadRoutineWidgets()
+                        withAnimation { todos = TodoStore.load() }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+                                .foregroundStyle(item.isDone ? Color.indigo : Color.secondary)
+                                .contentTransition(.symbolEffect(.replace))
+                            Text(item.title)
+                                .strikethrough(item.isDone)
+                                .foregroundStyle(item.isDone ? .secondary : .primary)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityValue(item.isDone ? "Done" : "To do")
+                }
+                if todayTodos.count > 6 {
+                    NavigationLink("\(todayTodos.count - 6) more", value: DashboardRoute.todos)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            HStack {
+                sectionHeader("To-Do", route: .todos, detail: nil, chevron: false)
+                if store.isPlus {
+                    Button {
+                        router.focusNewTodo = true
+                        path = [.todos]
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .accessibilityLabel("Add a to-do")
+                }
+            }
+        }
     }
 
-    private var todosSummary: String {
-        guard store.isPlus else { return "A to-do list that clears finished items every night" }
-        let items = TodoStore.load()
-        guard !items.isEmpty else { return "Nothing to do" }
-        let left = items.filter { !$0.isDone }.count
-        return left == 0 ? "All done for today" : "\(left) left to do"
+    /// A section title that opens its page, with an optional count like "2 of 4".
+    private func sectionHeader(_ title: String, route: DashboardRoute, detail: String?, chevron: Bool = true) -> some View {
+        Button { path = [route] } label: {
+            HStack(spacing: 4) {
+                Text(title)
+                Spacer()
+                if let detail { Text(detail).monospacedDigit() }
+                if chevron { Image(systemName: "chevron.right").font(.caption.weight(.semibold)) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .textCase(nil)
+    }
+
+    /// Widgets and apps, plus setup while it isn't finished.
+    private var homeScreenSection: some View {
+        Section {
+            if !isSetUp {
+                NavigationLink(value: DashboardRoute.help) {
+                    SettingsRow(icon: "checklist", tint: .green, title: "Set up your Home Screen",
+                                subtitle: "\(checklist.requiredDone) of \(checklist.requiredTotal) done")
+                }
+            }
+            NavigationLink(value: DashboardRoute.widgets) {
+                SettingsRow(icon: "square.grid.2x2.fill", tint: .indigo, title: "Widgets",
+                            subtitle: "Apps, style, colors, and extras")
+            }
+            NavigationLink(value: DashboardRoute.apps) {
+                SettingsRow(icon: "square.stack", tint: .blue, title: "Apps",
+                            subtitle: "Add apps, fix links, choose mindful pauses")
+            }
+        } header: {
+            Text("Home Screen")
+        }
     }
 
     private var todaySection: some View {
@@ -233,7 +343,7 @@ struct DashboardView: View {
                 Button {
                     Task {
                         await focus.requestAuthorization()
-                        if focus.isAuthorized { router.sheet = .focus }
+                        if focus.isAuthorized { router.sheet = .focus } else { showingBlockingHelp = true }
                     }
                 } label: {
                     SettingsRow(icon: "lock.shield", tint: .indigo, title: "Turn on blocking",
@@ -241,18 +351,13 @@ struct DashboardView: View {
                                 showsChevron: true)
                 }
             } else {
+                focusCard
                 Button {
                     editingFocus = WorkPeriod(name: "Focus")
                     Task { await focus.requestNotificationPermission() }
                 } label: {
-                    SettingsRow(icon: "plus", tint: .indigo, title: "New focus",
-                                subtitle: "Block apps on the days and hours you choose")
-                }
-                if let end = focus.sessionEnd, end > .now {
-                    focusRow(icon: "moon.fill", tint: .indigo, title: "Focus session",
-                             detail: "Until \(end.formatted(date: .omitted, time: .shortened))", isActive: true) {
-                        router.sheet = .focus
-                    }
+                    Label("New schedule", systemImage: "plus")
+                        .font(.subheadline)
                 }
                 ForEach(focus.workPeriods) { period in
                     focusRow(icon: period.mode == .allowOnly ? "lock.fill" : "moon.fill", tint: .indigo, title: period.name,
@@ -269,11 +374,6 @@ struct DashboardView: View {
                         router.sheet = .focus
                     }
                 }
-                Button { router.sheet = .focus } label: {
-                    Label("Focus now, limits & more", systemImage: "slider.horizontal.3")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
             }
         } header: {
             Text("Focus")
@@ -282,6 +382,45 @@ struct DashboardView: View {
                 Text("Tap a focus to edit or delete it.")
             }
         }
+    }
+
+    /// What's blocking right now, with End, or Start focus when nothing is.
+    @ViewBuilder
+    private var focusCard: some View {
+        let running = focus.workPeriods.first { focus.isRunning($0) }
+        HStack(spacing: 14) {
+            Image(systemName: focus.sessionEnd.map { $0 > .now } == true || running != nil ? "moon.fill" : "moon")
+                .font(.title3)
+                .foregroundStyle(.indigo)
+                .frame(width: 30)
+            VStack(alignment: .leading, spacing: 2) {
+                if let end = focus.sessionEnd, end > .now {
+                    Text("Focus session").font(.headline)
+                    Text("Until \(end.formatted(date: .omitted, time: .shortened))")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else if let running {
+                    Text(running.name).font(.headline)
+                    Text("Blocking now · \(running.timeRange)")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    Text("Nothing blocked").font(.headline)
+                    Text("Start a focus to block distractions").font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            Spacer(minLength: 8)
+            if let end = focus.sessionEnd, end > .now {
+                if focus.canEndSession {
+                    Button("End") { focus.endSession() }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                }
+            } else if running == nil {
+                Button("Start") { router.sheet = .focus }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.indigo)
+            }
+        }
+        .padding(.vertical, 6)
     }
 
     /// One schedule or rule, with whether it's blocking apps right now.
