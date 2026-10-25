@@ -64,11 +64,21 @@ enum AppCatalog {
         .init(name: "Books", scheme: "ibooks://", category: .essentials),
         .init(name: "App Store", scheme: "itms-apps://", category: .essentials),
         .init(name: "Shortcuts", scheme: "shortcuts://", category: .essentials),
+        .init(name: "Find My", scheme: "findmy://", category: .essentials),
+        .init(name: "News", scheme: "applenews://", category: .essentials),
+        .init(name: "Stocks", scheme: "stocks://", category: .essentials),
+        .init(name: "Voice Memos", scheme: "voicememos://", category: .essentials),
+        .init(name: "Home", scheme: "com.apple.home://", category: .essentials),
+        .init(name: "TestFlight", scheme: "itms-beta://", category: .essentials),
         // Built-in apps iOS gives no launch link; these open with an "Open App" Shortcut.
         .init(name: "Camera", scheme: nil, category: .essentials),
         .init(name: "Clock", scheme: nil, category: .essentials),
         .init(name: "Calculator", scheme: nil, category: .essentials),
         .init(name: "Settings", scheme: nil, category: .essentials),
+        .init(name: "FaceTime", scheme: nil, category: .essentials),
+        .init(name: "Contacts", scheme: nil, category: .essentials),
+        .init(name: "Translate", scheme: nil, category: .essentials),
+        .init(name: "Fitness", scheme: nil, category: .essentials),
 
         // Communication
         .init(name: "WhatsApp", scheme: "whatsapp://", category: .communication),
@@ -155,6 +165,16 @@ enum AppCatalog {
         "Podcasts": "com.apple.podcasts",
         "Books": "com.apple.iBooks",
         "Shortcuts": "com.apple.shortcuts",
+        "Find My": "com.apple.findmy",
+        "News": "com.apple.news",
+        "Stocks": "com.apple.stocks",
+        "Voice Memos": "com.apple.VoiceMemos",
+        "Home": "com.apple.Home",
+        "TestFlight": "com.apple.TestFlight",
+        "FaceTime": "com.apple.facetime",
+        "Contacts": "com.apple.MobileAddressBook",
+        "Translate": "com.apple.Translate",
+        "Fitness": "com.apple.Fitness",
         "WhatsApp": "net.whatsapp.WhatsApp",
         "Signal": "org.whispersystems.signal",
         "Telegram": "ph.telegra.Telegraph",
@@ -251,7 +271,62 @@ enum AppCatalog {
         "com.deezer.Deezer": "deezer://", // Deezer
         "com.aspiro.TIDAL": "tidal://", // TIDAL
         "com.asana.Asana": "asana://", // Asana
+        "com.nytimes.NYTimes": "nytimes://", // The New York Times
+        "com.yelp.yelpiphone": "yelp://", // Yelp
+        "com.booking.BookingApp": "booking://", // Booking.com
+        "com.cardify.tinder": "tinder://", // Tinder
+        "com.google.Keep": "comgooglekeep://", // Google Keep
+        "com.google.ios.youtubekids": "youtubekids://", // YouTube Kids
+        "com.google.GoogleMeet": "gmeet://", // Google Meet
+        "com.microsoft.skype.skype": "skype://", // Skype
+        "com.grailr.CARROTweather": "carrotweather://", // CARROT Weather
+        "com.etsy.etsyforios": "etsy://", // Etsy
+        "com.ebay.iphone": "ebay://", // eBay
+        "com.myfitnesspal.mfp": "mfp://", // MyFitnessPal
+        "com.goodreads.Goodreads": "goodreads://", // Goodreads
+        "com.hbo.hbonow": "hbomax://", // Max
+        "com.crunchyroll.iphone": "crunchyroll://", // Crunchyroll
+        "com.mojang.minecraftpe": "minecraft://", // Minecraft
     ]
+
+    /// Ready-made groups of apps, for filling widgets in one tap. Third-party apps only
+    /// join a set when they're on this iPhone (or iPhone won't say, in which case they're left out).
+    struct StarterSet: Identifiable {
+        let name: String
+        let icon: String
+        let apps: [String]
+        var id: String { name }
+    }
+
+    static let starterSets: [StarterSet] = [
+        StarterSet(name: "Essentials", icon: "star", apps: ["Phone", "Messages", "Camera", "Maps", "Music", "Calendar"]),
+        StarterSet(name: "Minimal", icon: "minus.circle", apps: ["Phone", "Messages", "Maps", "Notes"]),
+        StarterSet(name: "Work", icon: "briefcase", apps: ["Mail", "Calendar", "Notes", "Slack", "Microsoft Teams", "Zoom", "Outlook", "Gmail", "Google Calendar", "Notion"]),
+        StarterSet(name: "Listen & read", icon: "headphones", apps: ["Music", "Podcasts", "Books", "Spotify", "Audible", "Kindle", "Overcast"]),
+        StarterSet(name: "Get around", icon: "map", apps: ["Maps", "Wallet", "Weather", "Google Maps", "Uber", "Lyft", "Waze"]),
+    ]
+
+    /// The apps in a set that can be added here: Apple apps, plus third-party ones found
+    /// on this iPhone. At most one widget's worth.
+    static func apps(in set: StarterSet, installed: [CatalogApp]) -> [CatalogApp] {
+        let installedNames = Set(installed.map(\.name))
+        return set.apps.compactMap { name in apps.first { $0.name == name } }
+            .filter { $0.category == .essentials || installedNames.contains($0.name) }
+            .prefix(AppWidgetList.capacity)
+            .map { $0 }
+    }
+
+    /// The catalog app a name refers to, allowing for Home Screen labels cut short with "…".
+    static func app(named label: String) -> CatalogApp? {
+        let cleaned = label.replacingOccurrences(of: "…", with: "").replacingOccurrences(of: "...", with: "")
+            .trimmingCharacters(in: .whitespaces)
+        guard cleaned.count >= 2 else { return nil }
+        if let exact = apps.first(where: { $0.name.caseInsensitiveCompare(cleaned) == .orderedSame }) { return exact }
+        if cleaned.count < label.count, cleaned.count >= 4 {
+            return apps.first { $0.name.lowercased().hasPrefix(cleaned.lowercased()) }
+        }
+        return nil
+    }
 
     /// The launch link for an App Store app, if Ebb knows it.
     static func scheme(forBundleID bundleID: String) -> String? {

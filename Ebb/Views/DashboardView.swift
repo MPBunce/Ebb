@@ -90,6 +90,10 @@ struct DashboardView: View {
         } message: {
             Text("Ebb needs Screen Time access to block apps. Turn it on in Settings › Screen Time, or tap Turn on blocking again. Apple only gives Ebb anonymous tokens, never your activity.")
         }
+        .sheet(item: $router.importedSetup) { setup in
+            SetupImportView(setup: setup)
+                .ebbColorScheme()
+        }
         .sheet(item: $editingFocus) { period in
             NavigationStack {
                 FocusEditor(period: period, isNew: !focus.workPeriods.contains { $0.id == period.id })

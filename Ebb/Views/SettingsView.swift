@@ -51,6 +51,7 @@ struct SettingsView: View {
                         SettingsRow(icon: "square.stack", tint: .blue, title: "Apps",
                                     subtitle: "\(store.targets.count) added · edit links, hide, or remove")
                     }
+                    SetupShareRows()
                 }
 
                 Section("Home Screen") {

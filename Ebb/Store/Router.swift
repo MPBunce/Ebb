@@ -33,6 +33,8 @@ final class Router {
     var pendingRoute: DashboardRoute?
     /// Set by the To-Do widget's +, so the To-Do page starts with the keyboard up.
     var focusNewTodo = false
+    /// A setup someone shared, waiting for the user to confirm importing it.
+    var importedSetup: EbbSetup?
 
     /// Shows the breather if the block screen asked for one (via its notification).
     func checkForPendingBreather() {

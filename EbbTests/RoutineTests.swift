@@ -153,3 +153,42 @@ struct TodoStoreToggleTests {
     }
 
 }
+
+struct ScreenshotImportTests {
+    @Test func skipsWidgetAndSystemText() {
+        for text in ["9:41", "100%", "Saturday", "SAT", "October", "No Events Today", "Q Search", "Search App Library", "Siri", "A"] {
+            #expect(!ScreenshotImport.looksLikeAppName(text), "\(text)")
+        }
+        for text in ["Photos", "WhatsApp", "Google Maps", "Uber Eats", "YouTube"] {
+            #expect(ScreenshotImport.looksLikeAppName(text), "\(text)")
+        }
+    }
+
+    @Test func matchesCatalogNamesIncludingShortenedLabels() {
+        #expect(AppCatalog.app(named: "photos")?.name == "Photos")
+        #expect(AppCatalog.app(named: "Google Cal…")?.name == "Google Calendar")
+        #expect(AppCatalog.app(named: "Microso…") == nil || AppCatalog.app(named: "Microso…")?.name.hasPrefix("Microsoft") == true)
+        #expect(AppCatalog.app(named: "Xyzzy") == nil)
+    }
+
+    @Test func starterSetsOnlyUseAppsThatCanOpen() {
+        let essentials = AppCatalog.starterSets.first { $0.name == "Essentials" }!
+        #expect(AppCatalog.apps(in: essentials, installed: []).map(\.name) == ["Phone", "Messages", "Camera", "Maps", "Music", "Calendar"])
+        let work = AppCatalog.starterSets.first { $0.name == "Work" }!
+        // Without Slack or Zoom installed, only Apple's apps are offered.
+        #expect(AppCatalog.apps(in: work, installed: []).map(\.name) == ["Mail", "Calendar", "Notes"])
+    }
+}
+
+struct SetupSharingTests {
+    @Test func setupFileRoundTrips() throws {
+        let app = EbbSetup.App(id: UUID(), name: "Camera", method: .shortcut("Open Camera"), isMindful: false, isHidden: false, bundleID: "com.apple.camera")
+        let setup = EbbSetup(sharedBy: "Test", apps: [app], widgets: [.init(name: "Widget 1", appIDs: [app.id])],
+                             style: [AppGroup.Key.backgroundHex: "#112233"])
+        let read = try #require(EbbSetup.read(from: setup.fileURL()))
+        #expect(read.apps.first?.name == "Camera")
+        #expect(read.widgets.first?.appIDs == [app.id])
+        #expect(read.shortcutApps == ["Camera"])
+        #expect(read.style[AppGroup.Key.backgroundHex] == "#112233")
+    }
+}

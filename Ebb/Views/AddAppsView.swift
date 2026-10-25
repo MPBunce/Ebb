@@ -6,6 +6,7 @@
 //  Also the manual link/Shortcut editor and the "Open App" Shortcut walkthrough.
 //
 
+import PhotosUI
 import SwiftUI
 
 /// One app the picker can offer: from Ebb's list of known apps, already added, or the App Store.
@@ -84,6 +85,13 @@ struct AppPicker: View {
     @State private var shortcutQueue: [PickerApp] = []
     @State private var settingUpShortcut: PickerApp?
     @State private var isAddingManually = false
+    /// Screenshots of the App Library or Home Screen to read app names from.
+    @State private var screenshotItems: [PhotosPickerItem] = []
+    @State private var imported: [PickerApp] = []
+    @State private var unmatched: [String] = []
+    @State private var importProgress: String?
+    /// Apps that need a Shortcut, of the batch being set up, for "2 of 3".
+    @State private var shortcutTotal = 0
 
     private var widget: AppWidgetList? { widgetID.flatMap { id in store.lists.first { $0.id == id } } }
 
@@ -164,6 +172,10 @@ struct AppPicker: View {
     var body: some View {
         List {
             if query.isEmpty {
+                quickStartSection
+                if !imported.isEmpty {
+                    section("From your screenshots", imported)
+                }
                 if !addsImmediately && !unplacedApps.isEmpty {
                     section(widget == nil ? "Added, not on a widget" : "Already in Ebb", unplacedApps)
                 }
@@ -206,9 +218,14 @@ struct AppPicker: View {
         .safeAreaInset(edge: .bottom) {
             if !addsImmediately { addBar }
         }
+        .onChange(of: screenshotItems) { _, items in
+            guard !items.isEmpty else { return }
+            Task { await importScreenshots(items) }
+        }
         .sheet(item: $settingUpShortcut) { app in
             NavigationStack {
-                ShortcutSetupView(name: app.name, bundleID: app.bundleID, shortcutName: app.shortcutName) { shortcut in
+                ShortcutSetupView(name: app.name, bundleID: app.bundleID, shortcutName: app.shortcutName,
+                                  position: shortcutTotal > 1 ? "\(shortcutTotal - shortcutQueue.count) of \(shortcutTotal)" : nil) { shortcut in
                     if let shortcut {
                         var target = app.makeTarget()
                         target.method = .shortcut(shortcut)
@@ -224,6 +241,83 @@ struct AppPicker: View {
         .sheet(isPresented: $isAddingManually) {
             NavigationStack { TargetEditor(target: nil, widgetID: widgetID) }
         }
+    }
+
+    /// Import from screenshots, and ready-made sets, for filling widgets fast.
+    private var quickStartSection: some View {
+        Section {
+            PhotosPicker(selection: $screenshotItems, maxSelectionCount: 8, matching: .images) {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(importProgress ?? "Import from screenshots")
+                        Text("Screenshot your App Library list or Home Screen")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } icon: {
+                    if importProgress != nil { ProgressView() } else { Image(systemName: "text.viewfinder") }
+                }
+            }
+            .disabled(importProgress != nil)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(AppCatalog.starterSets) { set in
+                        Button {
+                            pick(AppCatalog.apps(in: set, installed: installed).map(PickerApp.init))
+                        } label: {
+                            Label(set.name, systemImage: set.icon)
+                                .font(.subheadline)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+        } header: {
+            Text("Quick start")
+        } footer: {
+            if !unmatched.isEmpty {
+                Text("Couldn't match \(unmatched.prefix(8).joined(separator: ", "))\(unmatched.count > 8 ? " and \(unmatched.count - 8) more" : ""). Search for those.")
+            } else {
+                Text("For the App Library list: swipe left past your last Home Screen, then pull down.")
+            }
+        }
+    }
+
+    /// Selects several apps at once (or adds them, during onboarding), skipping ones already picked.
+    private func pick(_ apps: [PickerApp]) {
+        for app in apps where !isSelected(app) {
+            if !addsImmediately, case .added = status(of: app) { continue }
+            tap(app)
+            if fullMessage { break }
+        }
+    }
+
+    private func importScreenshots(_ items: [PhotosPickerItem]) async {
+        importProgress = "Reading screenshots…"
+        defer { importProgress = nil; screenshotItems = [] }
+        var images: [UIImage] = []
+        for item in items {
+            if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+                images.append(image)
+            }
+        }
+        let names = await ScreenshotImport.names(in: images)
+        let result = await ScreenshotImport.match(names) { done, total in
+            importProgress = "Matching apps \(done) of \(total)…"
+        }
+        // Apps already shown elsewhere in the list don't need repeating.
+        imported = result.apps.filter { app in
+            if case .added = status(of: app) { return false }
+            return true
+        }
+        unmatched = result.unmatched
+        if !addsImmediately { pick(imported) }
     }
 
     private func section(_ title: String, _ apps: [PickerApp]) -> some View {
@@ -306,6 +400,7 @@ struct AppPicker: View {
         }
         selection = []
         shortcutQueue = needsShortcuts
+        shortcutTotal = needsShortcuts.count
         nextShortcut()
     }
 
@@ -640,6 +735,8 @@ struct ShortcutSetupView: View {
     @Environment(\.openURL) private var openURL
     let name: String
     let bundleID: String?
+    /// "2 of 3" when several apps are being set up in a row.
+    var position: String?
     /// Called with the shortcut's name when added, or nil when skipped.
     let onFinish: (String?) -> Void
 
@@ -647,9 +744,10 @@ struct ShortcutSetupView: View {
     @State private var openedShortcuts = false
     @State private var showName = false
 
-    init(name: String, bundleID: String?, shortcutName: String, onFinish: @escaping (String?) -> Void) {
+    init(name: String, bundleID: String?, shortcutName: String, position: String? = nil, onFinish: @escaping (String?) -> Void) {
         self.name = name
         self.bundleID = bundleID
+        self.position = position
         self.onFinish = onFinish
         _shortcutName = State(initialValue: shortcutName)
     }
@@ -659,6 +757,11 @@ struct ShortcutSetupView: View {
             Section {
                 VStack(spacing: 12) {
                     AppIconView(name: name, bundleID: bundleID, size: 64)
+                    if let position {
+                        Text("App \(position)")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                     Text("Set up \(name)")
                         .font(.title2.weight(.semibold))
                     Text("iPhone doesn't let other apps open \(name) directly, so Ebb uses a Shortcut. It takes about 20 seconds, and you only do it once.")

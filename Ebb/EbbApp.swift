@@ -29,7 +29,10 @@ struct EbbApp: App {
                 .task { Self.applyDebugScene() }
                 #endif
                 .onOpenURL { url in
-                    if let link = DeepLink(url: url) {
+                    if url.isFileURL {
+                        // A shared .ebbsetup file, opened from Messages, AirDrop, or Files.
+                        router.importedSetup = EbbSetup.read(from: url)
+                    } else if let link = DeepLink(url: url) {
                         router.handle(link, store: store)
                     } else if url.scheme != DeepLink.scheme {
                         // A widget link to another app that iOS routed through Ebb: pass it on.

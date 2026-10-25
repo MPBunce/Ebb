@@ -156,6 +156,12 @@ final class LauncherStore {
         return list
     }
 
+    /// Replaces every app widget, for importing a shared setup. Keeps at least one.
+    func replaceLists(_ newLists: [AppWidgetList]) {
+        lists = newLists.isEmpty ? [AppWidgetList(name: "Widget 1")] : newLists
+        saveLists()
+    }
+
     func renameList(_ id: UUID, to name: String) {
         guard let index = lists.firstIndex(where: { $0.id == id }) else { return }
         let trimmed = name.trimmingCharacters(in: .whitespaces)
