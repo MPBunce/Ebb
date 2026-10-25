@@ -23,8 +23,7 @@ struct SettingsView: View {
     #endif
 
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section {
                     SummaryCard(appCount: store.targets.count, homeCount: store.widgetAppIDs.count) {
                         showWalkthrough = true
@@ -90,24 +89,15 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationDestination(isPresented: $showPlus) { EbbPlusView() }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(role: .close) { dismiss() }
-                }
-            }
             .fullScreenCover(isPresented: $showWalkthrough) {
                 OnboardingView(isReplay: true)
                     .ebbColorScheme()
             }
-        }
     }
 
     private func switchTo(_ sheet: HomeSheet) {
-        router.sheet = nil
-        Task {
-            try? await Task.sleep(for: .milliseconds(400))
-            router.sheet = sheet
-        }
+        // Settings is a page now, so the sheet can open straight over it.
+        router.sheet = sheet
     }
 }
 

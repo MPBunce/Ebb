@@ -60,7 +60,7 @@ struct DashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Settings", systemImage: "gearshape") { router.sheet = .settings }
+                    Button("Settings", systemImage: "gearshape") { path.append(.settings) }
                 }
             }
         }
@@ -99,7 +99,8 @@ struct DashboardView: View {
         .sheet(item: $router.sheet) { sheet in
             Group {
                 switch sheet {
-                case .settings: SettingsView()
+                // Settings is a page now; an old saved state opens it there.
+                case .settings: Color.clear.onAppear { router.sheet = nil; path = [.settings] }
                 case .focus: FocusView()
                 case .insights: InsightsView()
                 }
@@ -139,6 +140,7 @@ struct DashboardView: View {
         case .help: HelpView()
         case .habits: HabitsView()
         case .todos: TodoListView()
+        case .settings: SettingsView()
         }
     }
 
@@ -164,7 +166,7 @@ struct DashboardView: View {
             } else if screen == "add" {
                 path = [.apps]
             } else if screen == "plus" {
-                router.sheet = .settings
+                path = [.settings]
             } else if let sheet = HomeSheet(rawValue: screen) {
                 router.sheet = sheet
             }
