@@ -23,6 +23,8 @@ struct EbbApp: App {
                 .environment(router)
                 .environment(icons)
                 .task { PlusStore.shared.start(launcher: store) }
+                // Keep the next week of habit reminders scheduled.
+                .task { HabitReminders.schedule(HabitStore.loadAll()) }
                 #if DEBUG
                 .task { Self.applyDebugScene() }
                 #endif

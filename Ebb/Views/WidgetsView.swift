@@ -43,11 +43,9 @@ struct WidgetsView: View {
             statusSection
 
             Section {
-                Text("Apps and Spacer come in medium and large; the rest also come in small. Every widget follows the alignment above unless you change it. Long-press one › Edit Widget for its options:\n\n**Clock**: style and date.\n**Year**: today, this week, month, or year, shown as a percent, bar, dots, ring, or countdown.\n**Life**: years, weeks & days, percent, bar, years as dots, ring, or weeks left, as life lived or remaining.\n**Time Saved**: a number, a breakdown, or what it adds up to, in minutes, hours, or days.\n**Weather**: now, the next hours, or the week where you are, in °C or °F.\n**Spacer**: an empty block in your widget color for spacing things out.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } header: {
-                Text("Sizes & options")
+                NavigationLink("What each widget can show") { HelpView() }
+            } footer: {
+                Text("Long-press a widget › Edit Widget for its options.")
             }
         }
         .navigationTitle("Widgets")
@@ -142,7 +140,7 @@ struct WidgetsView: View {
         } header: {
             Text("App widgets")
         } footer: {
-            Text("Each app widget holds up to \(AppWidgetList.capacity) apps. Add an Apps widget to your Home Screen for each one, then long-press it › Edit Widget › App Widget to choose which it shows.")
+            Text("Up to \(AppWidgetList.capacity) apps each. Pick one in Edit Widget › App Widget.")
         }
     }
 
@@ -167,7 +165,7 @@ struct WidgetsView: View {
         } header: {
             Text("Style")
         } footer: {
-            Text("Used by every widget: apps, clocks, and progress. Taps open apps directly; apps with a mindful pause go through Ebb first. To style one widget differently, long-press it › Edit Widget.")
+            Text("Every widget uses this, unless you change one in Edit Widget.")
         }
     }
 
@@ -287,7 +285,7 @@ struct WidgetsView: View {
         } header: {
             Text("Time Saved widget")
         } footer: {
-            Text("An estimate, since iPhone doesn't share real Screen Time totals: each time Ebb stops an app and you don't open it (at a mindful pause, a breather, or the block screen), it counts a typical visit. YouTube 7 min, TikTok 6, Facebook 4, Instagram 3, X and Pinterest 2, based on average session lengths; other apps use this setting.")
+            Text("An estimate per app you resist. Help explains how it's counted.")
         }
     }
 

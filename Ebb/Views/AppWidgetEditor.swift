@@ -163,7 +163,7 @@ struct EbbPlusView: View {
             Section("Included") {
                 Label("\(EbbPlus.plusAppWidgets - EbbPlus.freeAppWidgets) more app widgets, \(EbbPlus.plusAppWidgets) in total",
                       systemImage: "square.grid.2x2")
-                Label("Time & Life widget: time given back and life left, made for the Today View",
+                Label("Time & Life widget: time saved and life left, made for the Today View",
                       systemImage: "hourglass")
                 Label("Habits widget: check off daily habits and keep your streaks", systemImage: "checklist")
                 Label("To-Do widget: a list that clears finished items every night", systemImage: "checkmark.circle")

@@ -187,11 +187,13 @@ struct DashboardView: View {
     }
 
     private var habitsSummary: String {
-        guard store.isPlus else { return "Track daily habits on your Home Screen" }
+        guard store.isPlus else { return "Small habits, tracked on your Home Screen" }
         let habits = HabitStore.load()
-        guard !habits.isEmpty else { return "Add habits to track every day" }
-        let done = habits.filter { $0.isDone(on: .now) }.count
-        return "\(done) of \(habits.count) done today"
+        guard !habits.isEmpty else { return "Small habits, tied to what you already do" }
+        let due = habits.filter { $0.schedule.isScheduled(.now) }
+        guard !due.isEmpty else { return "A day off" }
+        let done = due.filter { $0.isDone(on: .now) }.count
+        return "\(done) of \(due.count) done today"
     }
 
     private var todosSummary: String {
@@ -208,9 +210,9 @@ struct DashboardView: View {
         return Section {
             Button { router.sheet = .insights } label: {
                 HStack {
-                    stat(saved.formattedHours, "hours given back")
+                    stat(saved.formattedHours, "hours saved")
                     Spacer()
-                    stat("\(insights.today.resisted)", "let go today")
+                    stat("\(insights.today.resisted)", "resisted today")
                     Spacer()
                     stat("\(insights.today.opened)", "opened today")
                     Image(systemName: "chevron.right")

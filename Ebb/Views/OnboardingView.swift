@@ -369,7 +369,7 @@ private struct PausePage: View {
         WalkthroughPage(
             symbol: "hourglass",
             title: "A breath before scrolling",
-            message: "Apps with a mindful pause show a short breathing countdown and ask what you're opening them for. Backing out counts as time given back in Insights."
+            message: "Apps with a mindful pause show a short breathing countdown and ask what you're opening them for. Backing out counts as time saved in Insights."
         ) {
             if store.targets.isEmpty {
                 Text("Add apps first, then choose which ones get a pause.")

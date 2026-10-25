@@ -19,15 +19,15 @@ struct InsightsView: View {
                     HStack {
                         stat("\(insights.today.opened)", "opened today")
                         Spacer()
-                        stat("\(insights.today.resisted)", "let go today")
+                        stat("\(insights.today.resisted)", "resisted today")
                         Spacer()
                         stat("\(insights.resistStreak)", "day streak")
                     }
                     .padding(.vertical, 6)
                     let saved = TimeSaved.load()
-                    LabeledContent("Time given back", value: "\(saved.formattedHours) h since \(saved.since.formatted(date: .abbreviated, time: .omitted))")
+                    LabeledContent("Time saved", value: "\(saved.formattedHours) h since \(saved.since.formatted(date: .abbreviated, time: .omitted))")
                 } footer: {
-                    Text("“Let go” counts the times you backed out during a mindful pause. The streak counts consecutive days with at least one.")
+                    Text("“Resisted” counts the times you backed out during a mindful pause. The streak counts consecutive days with at least one.")
                 }
 
                 Section("Last 7 days") {
@@ -41,9 +41,9 @@ struct InsightsView: View {
                             x: .value("Day", day.date, unit: .day),
                             y: .value("Opens", day.resisted)
                         )
-                        .foregroundStyle(by: .value("Kind", "Let go"))
+                        .foregroundStyle(by: .value("Kind", "Resisted"))
                     }
-                    .chartForegroundStyleScale(["Opened": Color.primary.opacity(0.75), "Let go": Color.secondary.opacity(0.35)])
+                    .chartForegroundStyleScale(["Opened": Color.primary.opacity(0.75), "Resisted": Color.secondary.opacity(0.35)])
                     .chartXAxis {
                         AxisMarks(values: .stride(by: .day)) { _ in
                             AxisValueLabel(format: .dateTime.weekday(.narrow))
@@ -66,7 +66,7 @@ struct InsightsView: View {
                         ForEach(insights.recentIntentions, id: \.self) { event in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(event.intention ?? "")
-                                Text("\(event.name) · \(event.date.formatted(.relative(presentation: .named)))\(event.outcome == .resisted ? " · let go" : "")")
+                                Text("\(event.name) · \(event.date.formatted(.relative(presentation: .named)))\(event.outcome == .resisted ? " · resisted" : "")")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }

@@ -72,7 +72,7 @@ struct TimeAndLifeWidgetView: View {
         let saved = TimeSaved.load()
         let amount = Self.amount(minutes: saved.totalMinutes)
         return VStack(alignment: .leading, spacing: 4) {
-            Caption(text: "time given back")
+            Caption(text: "time saved")
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(amount.value)
                     .font(.system(size: heroSize, weight: .thin))
@@ -104,7 +104,7 @@ struct TimeAndLifeWidgetView: View {
     private func summary(_ saved: TimeSaved) -> String {
         let sameYear = Calendar.current.isDate(saved.since, equalTo: entry.date, toGranularity: .year)
         let since = saved.since.formatted(sameYear ? .dateTime.month(.abbreviated).day() : .dateTime.month(.abbreviated).year())
-        let letGo = saved.resistedCount == 1 ? "1 app let go" : "\(saved.resistedCount.formatted()) apps let go"
+        let letGo = saved.resistedCount == 1 ? "1 app resisted" : "\(saved.resistedCount.formatted()) apps resisted"
         return "since \(since) · \(letGo)"
     }
 
@@ -183,7 +183,7 @@ struct TimeAndLifeWidget: Widget {
             TimeAndLifeWidgetView(entry: entry)
         }
         .configurationDisplayName("Time & Life")
-        .description("Time Ebb has given back, and the life you have left. Made for the Today View. Ebb Plus.")
+        .description("Time Ebb has saved you, and the life you have left. Made for the Today View. Ebb Plus.")
         .supportedFamilies(Self.families)
         .contentMarginsDisabled()
     }

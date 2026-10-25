@@ -42,7 +42,7 @@ struct LockScreenWidgetView: View {
                 Text("ebb")
                     .font(.system(size: family == .systemLarge ? 40 : 22, weight: .thin))
                 if family != .systemSmall {
-                    Text("\(saved.formattedHours) hours given back")
+                    Text("\(saved.formattedHours) hours saved")
                         .font(.caption)
                         .opacity(0.6)
                 }

@@ -727,7 +727,7 @@ enum SavedUnit: String, AppEnum {
 
 struct SavedConfigurationIntent: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Time Saved"
-    static let description = IntentDescription("Time Ebb has given back.")
+    static let description = IntentDescription("Time Ebb has saved you.")
 
     @Parameter(title: "Style", default: .number)
     var style: SavedStyle
@@ -842,7 +842,7 @@ struct TimeSavedWidgetView: View {
     private func number(_ saved: TimeSaved) -> some View {
         let total = amount(saved.totalMinutes)
         return VStack(alignment: align.horizontal, spacing: 4) {
-            Caption(text: "time given back")
+            Caption(text: "time saved")
             Spacer(minLength: 0)
             Text(total.value)
                 .font(.system(size: family.heroSize * 1.1, weight: .thin))
@@ -859,7 +859,7 @@ struct TimeSavedWidgetView: View {
     private func big(_ saved: TimeSaved) -> some View {
         let total = amount(saved.totalMinutes)
         return VStack(alignment: align.horizontal, spacing: 0) {
-            Caption(text: "time given back")
+            Caption(text: "time saved")
             Spacer(minLength: 0)
             Text(total.value)
                 .font(.system(size: 400, weight: .ultraLight))
@@ -986,7 +986,7 @@ struct TimeSavedWidget: Widget {
             TimeSavedWidgetView(entry: entry)
         }
         .configurationDisplayName("Time Saved")
-        .description("Time Ebb has given back: a typical visit for each app you didn't open. Edit to change style and units.")
+        .description("Time Ebb has saved you: a typical visit for each app you didn't open. Edit to change style and units.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular])
         .contentMarginsDisabled()
     }

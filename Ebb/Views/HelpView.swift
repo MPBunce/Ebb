@@ -338,7 +338,17 @@ struct CommonQuestion: Identifiable {
         CommonQuestion(
             icon: "sparkles",
             question: "What's in Ebb Plus?",
-            answer: "A one-time purchase, not a subscription. It adds up to \(EbbPlus.plusAppWidgets) app widgets (\(EbbPlus.freeAppWidgets) are free), extra clock styles, and the large Time & Life widget for the Today View. Everything else is free."
+            answer: "A one-time purchase, not a subscription. It adds up to \(EbbPlus.plusAppWidgets) app widgets (\(EbbPlus.freeAppWidgets) are free), extra clock styles, the large Time & Life widget for the Today View, and Habits and To-Do with their widgets. Everything else is free."
+        ),
+        CommonQuestion(
+            icon: "square.grid.2x2",
+            question: "What can each widget show?",
+            answer: "Apps and Spacer come in medium and large; the rest also come in small. Long-press one › Edit Widget for its options.\n\n**Clock**: style and date.\n**Year**: today, this week, month, or year, as a percent, bar, dots, ring, or countdown.\n**Life**: years, weeks & days, percent, bar, years as dots, ring, or weeks left, lived or remaining.\n**Time Saved**: a number, a breakdown, or what it adds up to.\n**Weather**: now, the next hours, or the week, in °C or °F. For a widget that follows you, allow location **While Using the App or Widgets**.\n**Habits** and **To-Do**: tick things off right from the Home Screen.\n**Spacer**: an empty block for spacing things out."
+        ),
+        CommonQuestion(
+            icon: "checklist",
+            question: "How do I build a habit that sticks?",
+            answer: "Make it small and tie it to something you already do. In a habit's **Edit**, fill in **After** (\u{201C}I pour my coffee\u{201D}) and **At least** (\u{201C}read one page\u{201D}): on hard days the tiny version still counts. **Never miss twice** keeps one missed day a week from breaking your streak. Habits can run on chosen days or a few times a week, count up (8 glasses), and remind you only if they're not done yet. Automatic habits tick themselves off from your focus sessions, the apps you resist, and your daily limit."
         ),
         CommonQuestion(
             icon: "lock.shield",

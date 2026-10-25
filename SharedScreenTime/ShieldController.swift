@@ -132,6 +132,7 @@ nonisolated enum ShieldController {
     /// didn't get a chance to (it is best-effort on iOS).
     static func reconcileExpiredSession(now: Date = .now) {
         if let end = sessionEnd, end <= now, activeReasons.contains(.session) {
+            DayLog.add(DayLog.focusFinished, on: end)
             sessionEnd = nil
             deactivate(.session)
         }

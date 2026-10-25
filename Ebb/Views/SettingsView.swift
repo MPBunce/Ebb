@@ -76,7 +76,7 @@ struct SettingsView: View {
                     }
                     Button { switchTo(.insights) } label: {
                         SettingsRow(icon: "chart.bar.fill", tint: .green, title: "Insights",
-                                    subtitle: "Opens, let-gos, and time given back", showsChevron: true)
+                                    subtitle: "Opens, resists, and time saved", showsChevron: true)
                     }
                 }
 
@@ -274,7 +274,7 @@ private struct PauseSettingsView: View {
 
     var body: some View {
         Form {
-            ExplainerHeader(icon: "hourglass", text: "Before a mindful app opens, Ebb shows a short breathing countdown. Most urges pass in a few seconds. Backing out is counted as time given back.")
+            ExplainerHeader(icon: "hourglass", text: "Before a mindful app opens, Ebb shows a short breathing countdown. Most urges pass in a few seconds. Backing out is counted as time saved.")
             Section {
                 Stepper("Pause for \(pauseSeconds) seconds", value: $pauseSeconds, in: 3...30)
                 Toggle("Ask what it's for", isOn: $askWhy)

@@ -32,6 +32,8 @@ final class EbbMonitorExtension: DeviceActivityMonitor {
         super.intervalDidEnd(for: activity)
         switch activity {
         case .session:
+            // Ran to its end (ending early stops monitoring, so this doesn't fire).
+            DayLog.add(DayLog.focusFinished)
             ShieldController.sessionEnd = nil
             ShieldController.deactivate(.session)
             // One-off sessions shouldn't repeat.
@@ -54,6 +56,7 @@ final class EbbMonitorExtension: DeviceActivityMonitor {
     override func eventDidReachThreshold(_ event: DeviceActivityEvent.Name, activity: DeviceActivityName) {
         super.eventDidReachThreshold(event, activity: activity)
         if event == .dailyLimit {
+            DayLog.add(DayLog.limitReached)
             ShieldController.activate(.dailyLimit)
         } else if event == .allowanceUsed, let slot = Allowance.slot(for: activity) {
             // The user has used the app for as long as they chose: block it again.

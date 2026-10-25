@@ -190,6 +190,7 @@ nonisolated struct TimeSaved {
     /// You backed out of an app at a mindful pause or breather.
     static func recordResist(appName: String? = nil) {
         migrateIfNeeded()
+        DayLog.add(DayLog.letGo)
         let defaults = AppGroup.defaults
         defaults.set(defaults.integer(forKey: AppGroup.Key.lifetimeResisted) + 1, forKey: AppGroup.Key.lifetimeResisted)
         defaults.set(defaults.integer(forKey: Key.resistedMinutes) + minutes(for: appName), forKey: Key.resistedMinutes)
@@ -198,6 +199,7 @@ nonisolated struct TimeSaved {
     /// You closed the block screen instead of unlocking the app.
     static func recordBlockedClose() {
         migrateIfNeeded()
+        DayLog.add(DayLog.letGo)
         let defaults = AppGroup.defaults
         defaults.set(defaults.integer(forKey: Key.blockedCount) + 1, forKey: Key.blockedCount)
         defaults.set(defaults.integer(forKey: Key.blockedMinutes) + minutes(for: nil), forKey: Key.blockedMinutes)

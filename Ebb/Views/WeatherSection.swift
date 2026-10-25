@@ -71,7 +71,7 @@ struct WeatherSection: View {
         } header: {
             Text("Weather widget")
         } footer: {
-            Text("Pick a place, or use your current location and choose **While Using the App or Widgets** so the widget can follow you. Your location only goes to Apple Weather.")
+            Text("Your location only goes to Apple Weather.")
         }
         .task {
             location.onAuthorizationChange = { Task { await refresh() } }

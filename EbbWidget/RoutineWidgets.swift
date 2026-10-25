@@ -134,13 +134,15 @@ struct HabitWidgetView: View {
         if habits.isEmpty {
             EmptyRoutine(icon: "checklist", text: "Add habits in Ebb › Habits")
         } else {
-            let shown = Array(habits.prefix(limit))
-            let doneToday = habits.filter { $0.isDone(on: entry.date) }.count
+            // Today's habits first; ones with the day off sink to the bottom.
+            let due = habits.filter { $0.schedule.isScheduled(entry.date) }
+            let shown = Array((due + habits.filter { !$0.schedule.isScheduled(entry.date) }).prefix(limit))
+            let doneToday = due.filter { $0.isDone(on: entry.date) }.count
             VStack(alignment: .leading, spacing: family == .systemLarge ? 12 : 8) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Habits").font(.caption).opacity(0.6)
                     Spacer()
-                    Text("\(doneToday)/\(habits.count) today")
+                    Text("\(doneToday)/\(due.count) today")
                         .font(.caption)
                         .monospacedDigit()
                         .opacity(0.6)
@@ -155,20 +157,33 @@ struct HabitWidgetView: View {
 
     private func row(_ habit: Habit) -> some View {
         let done = habit.isDone(on: entry.date)
+        let resting = !habit.schedule.isScheduled(entry.date)
         return Button(intent: ToggleHabitIntent(id: habit.id)) {
             HStack(spacing: 10) {
-                Check(isOn: done, size: family == .systemLarge ? 22 : 18)
+                if habit.auto != nil && !done {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: family == .systemLarge ? 18 : 15, weight: .light))
+                        .opacity(0.55)
+                } else {
+                    Check(isOn: done, size: family == .systemLarge ? 22 : 18)
+                }
                 Text(habit.name)
                     .font(family == .systemLarge ? .body : .subheadline)
                     .lineLimit(1)
-                    .opacity(done ? 0.6 : 1)
+                    .opacity(done || resting ? 0.5 : 1)
                 Spacer(minLength: 4)
+                if habit.isCounted && !done {
+                    Text("\(habit.count(on: entry.date))/\(habit.target)")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .opacity(0.6)
+                }
                 if showsWeek {
                     week(habit)
                 }
                 let streak = habit.streak(asOf: entry.date)
                 if streak > 1 && family != .systemSmall {
-                    Text("\(streak)d")
+                    Text(habit.streakText(asOf: entry.date, short: true))
                         .font(.caption)
                         .monospacedDigit()
                         .opacity(0.6)
@@ -186,7 +201,7 @@ struct HabitWidgetView: View {
         return HStack(spacing: 4) {
             ForEach(Array(days), id: \.self) { day in
                 Circle()
-                    .fill(.primary.opacity(habit.isDone(on: day) ? 0.85 : 0.15))
+                    .fill(.primary.opacity(habit.isDone(on: day) ? 0.85 : habit.schedule.isScheduled(day) ? 0.15 : 0.05))
                     .frame(width: 6, height: 6)
             }
         }
@@ -200,7 +215,7 @@ struct HabitWidget: Widget {
             HabitWidgetView(entry: entry)
         }
         .configurationDisplayName("Habits")
-        .description("Tap a habit to mark it done today. Add habits in Ebb. Ebb Plus.")
+        .description("Tap a habit to tick it off or count one more. Add habits in Ebb. Ebb Plus.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         .contentMarginsDisabled()
     }
@@ -225,7 +240,8 @@ struct TodoWidgetView: View {
             if !EbbPlus.isActive {
                 PlusLocked(name: "To-Do")
             } else {
-                content(TodoStore.load(asOf: entry.date))
+                // Someday items stay in Ebb.
+                content(TodoStore.load(asOf: entry.date).filter { !$0.isSomeday })
             }
         }
         .padding(16)

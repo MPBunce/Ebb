@@ -14,20 +14,60 @@ private func reloadRoutineWidgets() {
     WidgetCenter.shared.reloadTimelines(ofKind: "EbbTodo")
 }
 
-/// Shown instead of habits or to-dos for free users.
-private struct RoutinesLocked: View {
+/// Shown instead of habits or to-dos for free users: a look at the real thing, then the lock.
+private struct RoutinesLocked<Preview: View>: View {
     let title: String
     let detail: String
+    @ViewBuilder let preview: Preview
 
     var body: some View {
-        ContentUnavailableView {
-            Label(title, systemImage: "lock")
-        } description: {
-            Text(detail)
-        } actions: {
-            NavigationLink("About Ebb Plus") { EbbPlusView() }
+        VStack(spacing: 24) {
+            preview
+                .allowsHitTesting(false)
+                .padding(16)
+                .background(RoundedRectangle(cornerRadius: 22).fill(Color(.secondarySystemBackground)))
+                .overlay(alignment: .topTrailing) {
+                    Text("Preview")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(.quaternary))
+                        .padding(10)
+                }
+                .padding(.horizontal, 24)
+                .accessibilityHidden(true)
+            VStack(spacing: 8) {
+                Label(title, systemImage: "lock")
+                    .font(.title3.weight(.semibold))
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+            NavigationLink("Unlock with Ebb Plus") { EbbPlusView() }
                 .buttonStyle(.borderedProminent)
                 .tint(.indigo)
+            Spacer()
+        }
+        .padding(.top, 32)
+    }
+}
+
+/// Sample rows for the locked preview.
+private struct SampleRow: View {
+    let title: String
+    let detail: String
+    let done: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                .font(.title3)
+                .foregroundStyle(done ? Color.indigo : Color.secondary)
+            Text(title).strikethrough(done && detail.isEmpty)
+            Spacer()
+            Text(detail).font(.caption).foregroundStyle(.secondary)
         }
     }
 }
@@ -38,9 +78,19 @@ struct HabitsView: View {
     @Environment(LauncherStore.self) private var store
     @Environment(\.scenePhase) private var scenePhase
 
-    @State private var habits = HabitStore.load()
+    /// Every habit, archived ones too, so saving never drops any.
+    @State private var all = HabitStore.loadAll()
     @State private var newName = ""
     @State private var editing: Habit?
+    @State private var showArchived = false
+
+    private var active: [Habit] { all.filter { !$0.isArchived } }
+    private var archived: [Habit] { all.filter(\.isArchived) }
+    private var dueToday: [Habit] { active.filter { $0.schedule.isScheduled(.now) } }
+    private var restDay: [Habit] { active.filter { !$0.schedule.isScheduled(.now) } }
+    private var unusedAuto: [HabitAuto] {
+        HabitAuto.allCases.filter { kind in !all.contains { $0.auto == kind } }
+    }
 
     var body: some View {
         Group {
@@ -48,15 +98,27 @@ struct HabitsView: View {
                 list
             } else {
                 RoutinesLocked(title: "Habits",
-                               detail: "Track daily habits and check them off right on your Home Screen with Ebb Plus.")
+                               detail: "Track habits on your schedule, with streaks, reminders, and ones Ebb ticks off for you.") {
+                    VStack(spacing: 14) {
+                        SampleRow(title: "Walk 30 min", detail: "12 days", done: true)
+                        SampleRow(title: "Drink water", detail: "5 / 8", done: false)
+                        SampleRow(title: "Finish a focus session", detail: "Automatic", done: true)
+                    }
+                }
             }
         }
         .navigationTitle("Habits")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { habits = HabitStore.load() }
+        .onAppear(perform: reload)
         .onChange(of: scenePhase) { _, phase in
             // Habits may have been checked off on the widget.
-            if phase == .active { habits = HabitStore.load() }
+            if phase == .active { reload() }
+        }
+        .sheet(item: $editing) { habit in
+            HabitEditor(habit: habit) { saved in
+                if let index = all.firstIndex(where: { $0.id == saved.id }) { all[index] = saved } else { all.append(saved) }
+                save()
+            }
         }
     }
 
@@ -70,79 +132,169 @@ struct HabitsView: View {
                     Button("Add", action: add)
                         .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+            } footer: {
+                Text("Tap a habit's name for its history and options.")
             }
 
-            if !habits.isEmpty {
+            if !dueToday.isEmpty {
+                Section("Today") {
+                    ForEach(dueToday) { habit in row(habit) }
+                        .onMove { move($0, $1, within: dueToday) }
+                }
+            }
+
+            if !restDay.isEmpty {
+                Section("Not today") {
+                    ForEach(restDay) { habit in row(habit) }
+                        .onMove { move($0, $1, within: restDay) }
+                }
+            }
+
+            if active.count < 3, !unusedStarters.isEmpty {
                 Section {
-                    ForEach(habits) { habit in
-                        HabitRow(habit: habit) {
-                            toggle(habit)
+                    ForEach(unusedStarters.prefix(4)) { starter in
+                        Button {
+                            addStarter(starter)
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(starter.name).foregroundStyle(.primary)
+                                    Text("After \(starter.cue) · start with: \(starter.tiny.lowercased())")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: "plus.circle")
+                            }
                         }
-                        .swipeActions(edge: .trailing) {
-                            Button("Delete", role: .destructive) { delete(habit) }
-                            Button("Rename") { editing = habit }
-                                .tint(.indigo)
-                        }
-                    }
-                    .onMove { from, to in
-                        habits.move(fromOffsets: from, toOffset: to)
-                        save()
                     }
                 } header: {
-                    Text("Today")
+                    Text("Small starts")
                 } footer: {
-                    Text("Tap a habit to mark it done today. Dots show the last week; the number is your streak. Add the Habits widget to check them off from your Home Screen.")
+                    Text("Tiny habits tied to something you already do are the ones that stick.")
+                }
+            }
+
+            if !unusedAuto.isEmpty {
+                Section {
+                    ForEach(unusedAuto) { kind in
+                        Button {
+                            addAuto(kind)
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(kind.defaultName).foregroundStyle(.primary)
+                                    Text(kind.detail).font(.caption).foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: "plus.circle")
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Automatic habits")
+                } footer: {
+                    Text("Ebb ticks these off from what it sees, so there's nothing to check.")
+                }
+            }
+
+            if !archived.isEmpty {
+                Section {
+                    DisclosureGroup("Archived (\(archived.count))", isExpanded: $showArchived) {
+                        ForEach(archived) { habit in
+                            HStack {
+                                Text(habit.name).foregroundStyle(.secondary)
+                                Spacer()
+                                Text("\(habit.completions.count) days").font(.caption).foregroundStyle(.tertiary)
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button("Delete", role: .destructive) { delete(habit) }
+                                Button("Restore") { setArchived(habit, false) }.tint(.indigo)
+                            }
+                        }
+                    }
                 }
             }
         }
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
-            if !habits.isEmpty { EditButton() }
+            if active.count > 1 { EditButton() }
         }
         .overlay {
-            if habits.isEmpty {
+            if active.isEmpty {
                 ContentUnavailableView("No habits yet",
                                        systemImage: "checklist",
-                                       description: Text("Add a habit above, like a walk, reading, or no phone before bed."))
+                                       description: Text("Add one above, or pick an automatic one below."))
                     .allowsHitTesting(false)
-                    .padding(.top, 120)
+                    .padding(.top, 60)
             }
-        }
-        .alert("Rename habit", isPresented: Binding(get: { editing != nil }, set: { if !$0 { editing = nil } })) {
-            TextField("Name", text: Binding(get: { editing?.name ?? "" }, set: { editing?.name = $0 }))
-            Button("Save") {
-                if let editing, let index = habits.firstIndex(where: { $0.id == editing.id }),
-                   !editing.name.trimmingCharacters(in: .whitespaces).isEmpty {
-                    habits[index].name = editing.name.trimmingCharacters(in: .whitespaces)
-                    save()
-                }
-                editing = nil
-            }
-            Button("Cancel", role: .cancel) { editing = nil }
         }
     }
 
+    private func row(_ habit: Habit) -> some View {
+        HabitRow(habit: habit, onToggle: { toggle(habit) })
+            .swipeActions(edge: .trailing) {
+                Button("Archive") { setArchived(habit, true) }.tint(.gray)
+                Button("Edit") { editing = habit }.tint(.indigo)
+            }
+    }
+
+    private func reload() {
+        all = HabitStore.loadAll()
+        HabitReminders.schedule(all)
+    }
+
+    /// Opens the editor so the new habit can be made small and tied to a cue.
     private func add() {
         let name = newName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        habits.append(Habit(name: name))
+        editing = Habit(name: name, createdAt: .now, allowsSkip: true)
         newName = ""
+    }
+
+    private func addStarter(_ starter: HabitStarters.Starter) {
+        editing = Habit(name: starter.name, createdAt: .now, allowsSkip: true, cue: starter.cue, tinyVersion: starter.tiny)
+    }
+
+    private var unusedStarters: [HabitStarters.Starter] {
+        HabitStarters.all.filter { starter in !all.contains { $0.name == starter.name } }
+    }
+
+    private func addAuto(_ kind: HabitAuto) {
+        var habit = Habit(name: kind.defaultName, createdAt: .now, allowsSkip: true, auto: kind)
+        habit.syncAuto()
+        all.append(habit)
         save()
     }
 
     private func toggle(_ habit: Habit) {
-        guard let index = habits.firstIndex(where: { $0.id == habit.id }) else { return }
-        habits[index].toggle(on: .now)
+        guard habit.auto == nil, let index = all.firstIndex(where: { $0.id == habit.id }) else { return }
+        all[index].toggle(on: .now)
+        save()
+    }
+
+    /// Reorders within one section, keeping everything else where it is.
+    private func move(_ from: IndexSet, _ to: Int, within section: [Habit]) {
+        var reordered = section
+        reordered.move(fromOffsets: from, toOffset: to)
+        let ids = Set(section.map(\.id))
+        var queue = reordered[...]
+        all = all.map { ids.contains($0.id) ? queue.popFirst()! : $0 }
+        save()
+    }
+
+    private func setArchived(_ habit: Habit, _ archived: Bool) {
+        guard let index = all.firstIndex(where: { $0.id == habit.id }) else { return }
+        all[index].isArchived = archived
         save()
     }
 
     private func delete(_ habit: Habit) {
-        habits.removeAll { $0.id == habit.id }
+        all.removeAll { $0.id == habit.id }
         save()
     }
 
     private func save() {
-        HabitStore.save(habits)
+        HabitStore.save(all)
         reloadRoutineWidgets()
     }
 }
@@ -160,30 +312,35 @@ private struct HabitRow: View {
             HStack(spacing: 12) {
                 // Its own button, so tapping the circle checks it off instead of opening history.
                 Button(action: onToggle) {
-                    Image(systemName: done ? "checkmark.circle.fill" : "circle")
-                        .font(.title2)
-                        .foregroundStyle(done ? Color.indigo : Color.secondary)
-                        .contentTransition(.symbolEffect(.replace))
+                    HabitCheck(habit: habit, day: .now)
                         .frame(width: 32, height: 32)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
-                .accessibilityLabel(done ? "Mark not done" : "Mark done today")
+                .disabled(habit.auto != nil)
+                .accessibilityLabel(habit.auto != nil ? "Automatic" : habit.isCounted ? "Add one" : done ? "Mark not done" : "Mark done today")
                 VStack(alignment: .leading, spacing: 4) {
                     Text(habit.name)
                         .foregroundStyle(.primary)
-                    HStack(spacing: 4) {
-                        ForEach(DayKey.days(endingOn: .now, count: 7), id: \.self) { day in
-                            Circle()
-                                .fill(habit.isDone(on: day) ? Color.indigo : Color.secondary.opacity(0.2))
-                                .frame(width: 7, height: 7)
+                    HStack(spacing: 6) {
+                        HStack(spacing: 4) {
+                            ForEach(DayKey.days(endingOn: .now, count: 7), id: \.self) { day in
+                                let scheduled = habit.schedule.isScheduled(day)
+                                Circle()
+                                    .fill(habit.isDone(on: day) ? Color.indigo : Color.secondary.opacity(scheduled ? 0.25 : 0.08))
+                                    .frame(width: 7, height: 7)
+                            }
                         }
+                        .accessibilityHidden(true)
+                        Text(subtitle)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
-                    .accessibilityHidden(true)
                 }
                 Spacer()
                 if streak > 0 {
-                    Text("\(streak) day\(streak == 1 ? "" : "s")")
+                    Label(habit.streakText(), systemImage: "flame")
+                        .labelStyle(.titleAndIcon)
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -192,19 +349,217 @@ private struct HabitRow: View {
         }
         .accessibilityValue(done ? "Done today" : "Not done today")
     }
+
+    private var subtitle: String {
+        var parts: [String] = []
+        if let cue = habit.cueText { parts.append(cue) }
+        if habit.auto != nil { parts.append("Automatic") }
+        if habit.isCounted { parts.append("\(habit.count(on: .now)) of \(habit.target)") }
+        if case .weekly(let times) = habit.schedule { parts.append("\(habit.doneThisWeek(.now)) of \(times) this week") }
+        else if habit.schedule != .daily { parts.append(habit.schedule.label) }
+        return parts.joined(separator: " · ")
+    }
+}
+
+/// The tick for a habit: a circle, a filling ring for counted ones, a sparkle for automatic ones.
+private struct HabitCheck: View {
+    let habit: Habit
+    let day: Date
+
+    var body: some View {
+        let done = habit.isDone(on: day)
+        if habit.isCounted && !done {
+            ZStack {
+                Circle().stroke(Color.secondary.opacity(0.35), lineWidth: 2)
+                Circle()
+                    .trim(from: 0, to: CGFloat(habit.count(on: day)) / CGFloat(habit.target))
+                    .stroke(Color.indigo, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                Image(systemName: "plus").font(.caption.weight(.bold)).foregroundStyle(.indigo)
+            }
+            .frame(width: 24, height: 24)
+        } else {
+            Image(systemName: done ? "checkmark.circle.fill" : habit.auto != nil ? "sparkles" : "circle")
+                .font(.title2)
+                .foregroundStyle(done ? Color.indigo : Color.secondary)
+                .contentTransition(.symbolEffect(.replace))
+        }
+    }
+}
+
+// MARK: - Habit editor
+
+/// Name, schedule, count, skips, and reminder for one habit.
+struct HabitEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State var habit: Habit
+    let onSave: (Habit) -> Void
+
+    private enum Kind: String, CaseIterable, Identifiable {
+        case daily = "Every day", days = "Some days", weekly = "Times a week"
+        var id: Self { self }
+    }
+
+    @State private var kind: Kind = .daily
+    @State private var days: Set<Int> = [2, 3, 4, 5, 6]
+    @State private var timesPerWeek = 3
+    @State private var hasReminder = false
+    @State private var reminder = Calendar.current.date(from: DateComponents(hour: 20)) ?? .now
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Name") {
+                    TextField("Habit", text: $habit.name)
+                }
+
+                if habit.auto == nil {
+                    Section {
+                        LabeledContent("After") {
+                            TextField("I pour my morning coffee", text: Binding(
+                                get: { habit.cue ?? "" }, set: { habit.cue = $0.isEmpty ? nil : $0 }))
+                        }
+                        LabeledContent("At least") {
+                            TextField("read one page", text: Binding(
+                                get: { habit.tinyVersion ?? "" }, set: { habit.tinyVersion = $0.isEmpty ? nil : $0 }))
+                        }
+                    } header: {
+                        Text("Make it small")
+                    } footer: {
+                        Text("Tie it to something you already do, and pick a two-minute version for hard days. It still counts.")
+                    }
+                }
+
+                Section {
+                    Picker("Repeat", selection: $kind) {
+                        ForEach(Kind.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    switch kind {
+                    case .daily:
+                        EmptyView()
+                    case .days:
+                        WeekdayPicker(selection: $days)
+                    case .weekly:
+                        Stepper("\(timesPerWeek)× a week", value: $timesPerWeek, in: 1...6)
+                    }
+                    if kind != .weekly {
+                        Toggle("Never miss twice", isOn: $habit.allowsSkip)
+                    }
+                } header: {
+                    Text("Schedule")
+                } footer: {
+                    Text(kind == .weekly ? "Any days count. The streak is weeks in a row you hit it."
+                                         : habit.allowsSkip ? "One miss a week won't break your streak. Two in a row will."
+                                                            : "Days off never break a streak.")
+                }
+
+                if habit.auto == nil {
+                    Section {
+                        Stepper(habit.target == 1 ? "Just a tick" : "\(habit.target) times a day",
+                                value: $habit.target, in: 1...50)
+                    } header: {
+                        Text("Count")
+                    } footer: {
+                        Text("More than one counts up, like 8 glasses of water.")
+                    }
+                } else if let auto = habit.auto {
+                    Section("Automatic") {
+                        Text(auto.detail).foregroundStyle(.secondary)
+                    }
+                }
+
+                Section {
+                    Toggle("Remind me", isOn: $hasReminder)
+                    if hasReminder {
+                        DatePicker("Time", selection: $reminder, displayedComponents: .hourAndMinute)
+                    }
+                } footer: {
+                    Text("Only on days it isn't done yet.")
+                }
+            }
+            .navigationTitle(habit.name.isEmpty ? "Habit" : habit.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save)
+                        .disabled(habit.name.trimmingCharacters(in: .whitespaces).isEmpty || (kind == .days && days.isEmpty))
+                }
+            }
+            .onAppear(perform: load)
+        }
+    }
+
+    private func load() {
+        switch habit.schedule {
+        case .daily: kind = .daily
+        case .days(let set): kind = .days; days = set
+        case .weekly(let n): kind = .weekly; timesPerWeek = n
+        }
+        if let minutes = habit.reminderMinutes {
+            hasReminder = true
+            reminder = Calendar.current.date(from: DateComponents(hour: minutes / 60, minute: minutes % 60)) ?? reminder
+        }
+    }
+
+    private func save() {
+        habit.name = habit.name.trimmingCharacters(in: .whitespaces)
+        switch kind {
+        case .daily: habit.schedule = .daily
+        case .days: habit.schedule = days.count == 7 ? .daily : .days(days)
+        case .weekly: habit.schedule = .weekly(timesPerWeek)
+        }
+        if hasReminder {
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: reminder)
+            habit.reminderMinutes = (parts.hour ?? 20) * 60 + (parts.minute ?? 0)
+            Task { _ = await HabitReminders.requestPermission() }
+        } else {
+            habit.reminderMinutes = nil
+        }
+        onSave(habit)
+        dismiss()
+    }
+}
+
+/// Seven round buttons, Monday first.
+private struct WeekdayPicker: View {
+    @Binding var selection: Set<Int>
+
+    var body: some View {
+        let symbols = Calendar.current.veryShortWeekdaySymbols
+        HStack {
+            ForEach([2, 3, 4, 5, 6, 7, 1], id: \.self) { day in
+                let on = selection.contains(day)
+                Button {
+                    if on { selection.remove(day) } else { selection.insert(day) }
+                } label: {
+                    Text(symbols[day - 1])
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(on ? Color.indigo : Color.secondary.opacity(0.15)))
+                        .foregroundStyle(on ? .white : .primary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Calendar.current.weekdaySymbols[day - 1])
+                .accessibilityAddTraits(on ? .isSelected : [])
+                if day != 1 { Spacer(minLength: 0) }
+            }
+        }
+        .padding(.vertical, 4)
+    }
 }
 
 // MARK: - Habit history
 
-/// One habit's history: streaks, totals, and a heat map of the last six months.
-/// Tap any day on the map to fill in a day you missed logging.
+/// One habit's history: streaks, this month, the day you miss most, and a heat map of the
+/// last six months. Tap any day on the map to fill in a day you missed logging.
 struct HabitDetailView: View {
     let habitID: UUID
     @Environment(\.dismiss) private var dismiss
 
     @State private var habit: Habit?
-    @State private var isRenaming = false
-    @State private var newName = ""
+    @State private var isEditing = false
     @State private var confirmDelete = false
 
     var body: some View {
@@ -217,60 +572,108 @@ struct HabitDetailView: View {
         }
         .navigationTitle(habit?.name ?? "Habit")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear { habit = HabitStore.load().first { $0.id == habitID } }
+        .toolbar {
+            if habit != nil { Button("Edit") { isEditing = true } }
+        }
+        .onAppear { habit = HabitStore.loadAll().first { $0.id == habitID } }
+        .sheet(isPresented: $isEditing) {
+            if let habit {
+                HabitEditor(habit: habit) { saved in update { $0 = saved } }
+            }
+        }
     }
 
     private func content(_ habit: Habit) -> some View {
         let done = habit.isDone(on: .now)
         return List {
             Section {
-                Button {
-                    toggle(.now)
-                } label: {
-                    Label(done ? "Done today" : "Mark done today",
-                          systemImage: done ? "checkmark.circle.fill" : "circle")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(.white)
+                if habit.auto != nil {
+                    Label(done ? "Done today" : "Ebb ticks this off for you",
+                          systemImage: done ? "checkmark.circle.fill" : "sparkles")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                        .foregroundStyle(done ? .green : .secondary)
+                } else if habit.isCounted {
+                    HStack {
+                        Button { update { $0.decrement(on: .now) } } label: {
+                            Image(systemName: "minus").frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.bordered).buttonBorderShape(.circle)
+                        .disabled(habit.count(on: .now) == 0)
+                        Spacer()
+                        VStack(spacing: 0) {
+                            Text("\(habit.count(on: .now)) of \(habit.target)")
+                                .font(.title.weight(.light)).monospacedDigit()
+                            Text(done ? "Done today" : "today").font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button { update { $0.toggle(on: .now) } } label: {
+                            Image(systemName: done ? "arrow.counterclockwise" : "plus").frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.borderedProminent).buttonBorderShape(.circle).tint(.indigo)
+                    }
+                } else {
+                    Button {
+                        toggle(.now)
+                    } label: {
+                        Label(done ? "Done today" : "Mark done today",
+                              systemImage: done ? "checkmark.circle.fill" : "circle")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .tint(done ? .green : .indigo)
                 }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.capsule)
-                .tint(done ? .green : .indigo)
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets())
             }
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets())
 
             Section {
                 HStack(spacing: 0) {
-                    stat("\(habit.streak(asOf: .now))", "current streak")
-                    stat("\(habit.longestStreak())", "best streak")
-                    stat("\(habit.doneCount(lastDays: 30, endingOn: .now))/30", "last 30 days")
+                    stat(habit.streakText(), "current streak")
+                    stat(habit.schedule.isWeekly ? "\(habit.longestStreak())w" : "\(habit.longestStreak())d", "best streak")
+                    stat(habit.monthRate().map { $0.formatted(.percent.precision(.fractionLength(0))) } ?? "–", "this month")
                 }
                 .padding(.vertical, 6)
+                if habit.cueText != nil || habit.tinyVersion != nil {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text([habit.cueText.map { "\($0), I will \(habit.name.lowercased())." }, habit.tinyVersion.map { "At least: \($0)." }]
+                            .compactMap { $0 }.joined(separator: "\n"))
+                    }
+                    .font(.subheadline)
+                }
+                LabeledContent("Schedule", value: habit.schedule.label)
+                if let weekday = habit.mostMissedWeekday() {
+                    LabeledContent("Missed most", value: Calendar.current.weekdaySymbols[weekday - 1] + "s")
+                }
+                if let minutes = habit.reminderMinutes,
+                   let time = Calendar.current.date(from: DateComponents(hour: minutes / 60, minute: minutes % 60)) {
+                    LabeledContent("Reminder", value: time.formatted(date: .omitted, time: .shortened))
+                }
             }
 
             Section {
-                HabitHeatMap(habit: habit) { day in toggle(day) }
+                HabitHeatMap(habit: habit) { day in if habit.auto == nil { toggle(day) } }
                     .padding(.vertical, 8)
             } header: {
                 Text("Last 6 months")
             } footer: {
-                Text("Each square is a day. Tap one to mark it done or not, if you forgot to check it off. \(habit.completions.count) day\(habit.completions.count == 1 ? "" : "s") done in total.")
+                Text(habit.auto == nil ? "Tap a day to fix it. \(habit.completions.count) days done in total."
+                                       : "\(habit.completions.count) days done in total.")
             }
 
             Section {
-                Button("Rename") {
-                    newName = habit.name
-                    isRenaming = true
+                Button(habit.isArchived ? "Restore" : "Archive") {
+                    update { $0.isArchived.toggle() }
+                    if !(self.habit?.isArchived ?? true) { return }
+                    dismiss()
                 }
                 Button("Delete habit", role: .destructive) { confirmDelete = true }
+            } footer: {
+                Text("Archiving hides it and keeps its history.")
             }
-        }
-        .alert("Rename habit", isPresented: $isRenaming) {
-            TextField("Name", text: $newName)
-            Button("Save") { rename() }
-            Button("Cancel", role: .cancel) {}
         }
         .confirmationDialog("Delete \(habit.name)?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete habit and its history", role: .destructive) { delete() }
@@ -290,7 +693,7 @@ struct HabitDetailView: View {
     }
 
     private func update(_ change: (inout Habit) -> Void) {
-        var habits = HabitStore.load()
+        var habits = HabitStore.loadAll()
         guard let index = habits.firstIndex(where: { $0.id == habitID }) else { return }
         change(&habits[index])
         HabitStore.save(habits)
@@ -302,14 +705,8 @@ struct HabitDetailView: View {
         update { $0.toggle(on: day) }
     }
 
-    private func rename() {
-        let name = newName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        update { $0.name = name }
-    }
-
     private func delete() {
-        HabitStore.save(HabitStore.load().filter { $0.id != habitID })
+        HabitStore.save(HabitStore.loadAll().filter { $0.id != habitID })
         reloadRoutineWidgets()
         dismiss()
     }
@@ -352,7 +749,7 @@ private struct HabitHeatMap: View {
                             } else {
                                 let done = habit.isDone(on: date)
                                 RoundedRectangle(cornerRadius: cell * 0.25)
-                                    .fill(done ? Color.indigo : Color.secondary.opacity(0.15))
+                                    .fill(done ? Color.indigo : Color.secondary.opacity(habit.schedule.isScheduled(date) ? 0.15 : 0.05))
                                     .overlay {
                                         if calendar.isDate(date, inSameDayAs: today) {
                                             RoundedRectangle(cornerRadius: cell * 0.25)
@@ -417,7 +814,8 @@ struct TodoListView: View {
     @State private var items = TodoStore.load()
     @State private var newTitle = ""
 
-    private var open: [TodoItem] { items.filter { !$0.isDone } }
+    private var open: [TodoItem] { items.filter { !$0.isDone && !$0.isSomeday } }
+    private var someday: [TodoItem] { items.filter { !$0.isDone && $0.isSomeday } }
     private var done: [TodoItem] { items.filter(\.isDone) }
 
     var body: some View {
@@ -426,7 +824,13 @@ struct TodoListView: View {
                 list
             } else {
                 RoutinesLocked(title: "To-Do",
-                               detail: "Keep a simple to-do list on your Home Screen that clears what you've finished every night, with Ebb Plus.")
+                               detail: "A to-do list on your Home Screen that clears what you've finished every night.") {
+                    VStack(spacing: 14) {
+                        SampleRow(title: "Call the dentist", detail: "", done: false)
+                        SampleRow(title: "Buy groceries", detail: "", done: true)
+                        SampleRow(title: "Book flights", detail: "Someday", done: false)
+                    }
+                }
             }
         }
         .onAppear(perform: focusIfAsked)
@@ -453,16 +857,38 @@ struct TodoListView: View {
             }
 
             if !open.isEmpty {
-                Section("To do") {
+                Section {
                     ForEach(open) { item in
                         row(item)
                     }
                     .onMove { from, to in
                         var reordered = open
                         reordered.move(fromOffsets: from, toOffset: to)
-                        items = reordered + done
+                        items = reordered + someday + done
                         save()
                     }
+                } header: {
+                    Text("Today")
+                } footer: {
+                    Text("The widget shows these, top first. Drag to reorder in Edit.")
+                }
+            }
+
+            if !someday.isEmpty {
+                Section {
+                    ForEach(someday) { item in
+                        row(item)
+                    }
+                    .onMove { from, to in
+                        var reordered = someday
+                        reordered.move(fromOffsets: from, toOffset: to)
+                        items = open + reordered + done
+                        save()
+                    }
+                } header: {
+                    Text("Someday")
+                } footer: {
+                    Text("Kept here, off the widget. Swipe one to move it to Today.")
                 }
             }
 
@@ -480,13 +906,13 @@ struct TodoListView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
-            if !open.isEmpty { EditButton() }
+            if open.count + someday.count > 1 { EditButton() }
         }
         .overlay {
             if items.isEmpty {
                 ContentUnavailableView("Nothing to do",
                                        systemImage: "checkmark.circle",
-                                       description: Text("Add a to-do above. Check things off here or on the To-Do widget; finished items clear at midnight."))
+                                       description: Text("Add a to-do above."))
                     .allowsHitTesting(false)
                     .padding(.top, 120)
             }
@@ -512,8 +938,12 @@ struct TodoListView: View {
         .buttonStyle(.plain)
         .swipeActions(edge: .trailing) {
             Button("Delete", role: .destructive) { delete(item) }
+            if !item.isDone {
+                Button(item.isSomeday ? "Today" : "Someday") { moveToSomeday(item, !item.isSomeday) }
+                    .tint(.indigo)
+            }
         }
-        .accessibilityValue(item.isDone ? "Done" : "To do")
+        .accessibilityValue(item.isDone ? "Done" : item.isSomeday ? "Someday" : "To do")
     }
 
     /// The To-Do widget's + opens this page ready to type.
@@ -530,7 +960,7 @@ struct TodoListView: View {
     private func add() {
         let title = newTitle.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
-        items = open + [TodoItem(title: title)] + done
+        items = open + [TodoItem(title: title)] + someday + done
         newTitle = ""
         save()
     }
@@ -543,6 +973,12 @@ struct TodoListView: View {
 
     private func delete(_ item: TodoItem) {
         items.removeAll { $0.id == item.id }
+        save()
+    }
+
+    private func moveToSomeday(_ item: TodoItem, _ someday: Bool) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }) else { return }
+        withAnimation { items[index].isSomeday = someday }
         save()
     }
 
