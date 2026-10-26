@@ -24,6 +24,8 @@ struct DashboardView: View {
     @State private var todos = TodoStore.load()
     /// Shown when Screen Time access was declined, instead of nothing happening.
     @State private var showingBlockingHelp = false
+    @AppStorage(PrefKey.whatsNewSeen) private var whatsNewSeen = ""
+    @AppStorage(PrefKey.weeklyRecap) private var weeklyRecap = false
     /// The focus being created or edited from the main screen.
     @State private var editingFocus: WorkPeriod?
     @State private var path: [DashboardRoute] = []
@@ -49,6 +51,9 @@ struct DashboardView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 0))
 
+                if whatsNewSeen != WhatsNew.version {
+                    WhatsNewCard { withAnimation { whatsNewSeen = WhatsNew.version } }
+                }
                 focusSection
                 habitsSection
                 todosSection
@@ -76,6 +81,7 @@ struct DashboardView: View {
             if phase == .active {
                 Task { await refreshWidgets() }
                 reloadRoutines()
+                if weeklyRecap { WeeklyRecap.schedule(events: store.events) }
             }
         }
         .onChange(of: path) { _, newPath in
@@ -326,7 +332,7 @@ struct DashboardView: View {
         return Section {
             Button { router.sheet = .insights } label: {
                 HStack {
-                    stat(saved.formattedHours, "hours saved")
+                    stat(saved.shortValue, "\(saved.shortUnit) saved")
                     Spacer()
                     stat("\(insights.today.resisted)", "resisted today")
                     Spacer()

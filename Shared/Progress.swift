@@ -205,6 +205,12 @@ nonisolated struct TimeSaved {
         defaults.set(defaults.integer(forKey: Key.blockedMinutes) + minutes(for: nil), forKey: Key.blockedMinutes)
     }
 
+    /// "12" with "min" until there's an hour saved, then "3.2" with "hours".
+    var shortValue: String { totalMinutes < 60 ? "\(totalMinutes)" : formattedHours }
+    var shortUnit: String { totalMinutes < 60 ? "min" : (hours < 1.05 ? "hour" : "hours") }
+    /// "12 min" or "3.2 hours".
+    var shortText: String { "\(shortValue) \(shortUnit)" }
+
     var formattedHours: String {
         hours < 10 ? hours.formatted(.number.precision(.fractionLength(1))) : "\(Int(hours))"
     }

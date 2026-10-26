@@ -11,4 +11,7 @@ enum PrefKey {
     static let hasOnboarded = "hasOnboarded"
     static let pauseSeconds = "pauseSeconds"
     static let askWhy = "askWhy"
+    /// The version whose "What's new" card was last dismissed.
+    static let whatsNewSeen = "whatsNewSeen"
+    static let weeklyRecap = "weeklyRecap"
 }

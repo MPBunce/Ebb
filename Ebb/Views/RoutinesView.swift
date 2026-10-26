@@ -12,6 +12,7 @@ import WidgetKit
 func reloadRoutineWidgets() {
     WidgetCenter.shared.reloadTimelines(ofKind: "EbbHabits")
     WidgetCenter.shared.reloadTimelines(ofKind: "EbbTodo")
+    WidgetCenter.shared.reloadTimelines(ofKind: "EbbHabitsRing")
 }
 
 /// Shown instead of habits or to-dos for free users: a look at the real thing, then the lock.

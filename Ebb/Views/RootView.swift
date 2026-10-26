@@ -21,6 +21,8 @@ struct RootView: View {
         }
         .ebbColorScheme()
         .tint(.primary)
+        // Switches use their own color, so "on" is visible in every theme.
+        .toggleStyle(SwitchToggleStyle(tint: .indigo))
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 focus.refresh()

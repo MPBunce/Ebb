@@ -25,7 +25,7 @@ struct InsightsView: View {
                     }
                     .padding(.vertical, 6)
                     let saved = TimeSaved.load()
-                    LabeledContent("Time saved", value: "\(saved.formattedHours) h since \(saved.since.formatted(date: .abbreviated, time: .omitted))")
+                    LabeledContent("Time saved", value: "\(saved.shortText) since \(saved.since.formatted(date: .abbreviated, time: .omitted))")
                 } footer: {
                     Text("“Resisted” counts the times you backed out during a mindful pause. The streak counts consecutive days with at least one.")
                 }

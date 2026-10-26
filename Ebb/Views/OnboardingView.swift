@@ -103,6 +103,8 @@ struct OnboardingView: View {
 
     private func finish() {
         hasOnboarded = true
+        // New installs don't need to hear what changed.
+        UserDefaults.standard.set(WhatsNew.version, forKey: PrefKey.whatsNewSeen)
         if isReplay { dismiss() }
     }
 

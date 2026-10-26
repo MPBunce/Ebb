@@ -65,6 +65,10 @@ struct SettingsView: View {
                     }
                 }
 
+                Section {
+                    WeeklyRecapToggle()
+                }
+
                 Section("Wellbeing") {
                     NavigationLink { PauseSettingsView() } label: {
                         SettingsRow(icon: "hourglass", tint: .mint, title: "Mindful pause",

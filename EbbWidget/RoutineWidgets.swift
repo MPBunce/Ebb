@@ -24,6 +24,7 @@ struct ToggleHabitIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         if EbbPlus.isActive, let id = UUID(uuidString: habitID) {
             HabitStore.toggle(id: id)
+            WidgetCenter.shared.reloadTimelines(ofKind: "EbbHabitsRing")
         }
         return .result()
     }
@@ -311,5 +312,72 @@ struct TodoWidget: Widget {
         .description("Check things off right on your Home Screen. Checked items clear at midnight. Ebb Plus.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
         .contentMarginsDisabled()
+    }
+}
+
+// MARK: - Lock Screen habits
+
+struct HabitRingEntry: TimelineEntry {
+    let date: Date
+}
+
+/// Refreshes at midnight; ticking a habit reloads it straight away.
+struct HabitRingProvider: TimelineProvider {
+    func placeholder(in context: Context) -> HabitRingEntry { HabitRingEntry(date: .now) }
+    func getSnapshot(in context: Context, completion: @escaping (HabitRingEntry) -> Void) {
+        completion(HabitRingEntry(date: .now))
+    }
+    func getTimeline(in context: Context, completion: @escaping (Timeline<HabitRingEntry>) -> Void) {
+        let midnight = Midnight.next(after: .now)
+        completion(Timeline(entries: [HabitRingEntry(date: .now), HabitRingEntry(date: midnight.addingTimeInterval(1))],
+                            policy: .after(midnight)))
+    }
+}
+
+struct HabitRingView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: HabitRingEntry
+
+    var body: some View {
+        let due = HabitStore.load().filter { $0.schedule.isScheduled(entry.date) }
+        let done = due.filter { $0.isDone(on: entry.date) }.count
+        let fraction = due.isEmpty ? 0 : Double(done) / Double(due.count)
+        Group {
+            if !EbbPlus.isActive {
+                Image(systemName: "lock")
+            } else if family == .accessoryRectangular {
+                HStack(spacing: 10) {
+                    Gauge(value: fraction) { EmptyView() }
+                        .gaugeStyle(.accessoryCircularCapacity)
+                        .scaleEffect(0.8)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Habits").font(.headline)
+                        Text(due.isEmpty ? "Day off" : "\(done) of \(due.count) today")
+                            .font(.caption)
+                    }
+                    Spacer(minLength: 0)
+                }
+            } else {
+                Gauge(value: fraction) {
+                    Image(systemName: "checklist")
+                } currentValueLabel: {
+                    Text(due.isEmpty ? "–" : "\(done)/\(due.count)")
+                }
+                .gaugeStyle(.accessoryCircular)
+            }
+        }
+        .containerBackground(.clear, for: .widget)
+        .widgetURL(DeepLink.home.url)
+    }
+}
+
+struct HabitRingWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "EbbHabitsRing", provider: HabitRingProvider()) { entry in
+            HabitRingView(entry: entry)
+        }
+        .configurationDisplayName("Habits Today")
+        .description("How many of today's habits are done. Ebb Plus.")
+        .supportedFamilies([.accessoryCircular, .accessoryRectangular])
     }
 }
