@@ -10,13 +10,12 @@ import UserNotifications
 
 enum WhatsNew {
     /// Bump with each release that has something worth telling people about.
-    static let version = "1.4"
+    static let version = "1.5"
 
     static let items: [(icon: String, text: String)] = [
-        ("sun.max", "A main screen built around today: tick habits and to-dos right here"),
-        ("checklist", "Habits that stick: small starts, schedules, never miss twice, reminders"),
-        ("text.viewfinder", "Add apps from a screenshot, or with a starter set"),
-        ("square.and.arrow.up", "Share your setup with another iPhone"),
+        ("calendar.badge.clock", "Weekly recap: a Sunday summary of your week (turn it on in Settings)"),
+        ("lock.circle", "Habits Today: a Lock Screen widget for today's habits"),
+        ("clock", "Time saved now shows minutes until it's an hour"),
     ]
 }
 
