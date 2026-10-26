@@ -137,6 +137,14 @@ struct HabitsView: View {
                 Text("Tap a habit's name for its history and options.")
             }
 
+            if active.isEmpty {
+                Section {
+                    Label("No habits yet. Add your own above, or start small with one below.", systemImage: "checklist")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             if !dueToday.isEmpty {
                 Section("Today") {
                     ForEach(dueToday) { habit in row(habit) }
@@ -219,15 +227,6 @@ struct HabitsView: View {
         .scrollDismissesKeyboard(.interactively)
         .toolbar {
             if active.count > 1 { EditButton() }
-        }
-        .overlay {
-            if active.isEmpty {
-                ContentUnavailableView("No habits yet",
-                                       systemImage: "checklist",
-                                       description: Text("Add one above, or pick an automatic one below."))
-                    .allowsHitTesting(false)
-                    .padding(.top, 60)
-            }
         }
     }
 
