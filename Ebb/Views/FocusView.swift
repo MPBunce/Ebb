@@ -271,9 +271,9 @@ struct FocusEditor: View {
                 WeekdayPicker(selection: $period.weekdays)
                     .padding(.vertical, 4)
             } header: {
-                Text("Days")
+                Text("Which days")
             } footer: {
-                Text("If it ends after midnight, it counts for the day it starts.")
+                Text("Blocks only on the days you pick. If it ends after midnight, it counts for the day it starts.")
             }
             if !isNew {
                 Section {
@@ -337,7 +337,33 @@ private struct WeekdayPicker: View {
         return (0..<7).map { (first - 1 + $0) % 7 + 1 }
     }
 
+    private static let presets: [(String, Set<Int>)] = [
+        ("Weekdays", [2, 3, 4, 5, 6]), ("Weekends", [1, 7]), ("Every day", Set(1...7)),
+    ]
+
     var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                ForEach(Self.presets, id: \.0) { name, days in
+                    let isOn = selection == days
+                    Button { selection = days } label: {
+                        Text(name)
+                            .font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity)
+                            .background(Capsule().fill(isOn ? Color.primary : Color.secondary.opacity(0.15)))
+                            .foregroundStyle(isOn ? Color(.systemBackground) : .primary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isOn ? .isSelected : [])
+                }
+            }
+            dayCircles
+        }
+    }
+
+    private var dayCircles: some View {
         HStack(spacing: 6) {
             ForEach(days, id: \.self) { day in
                 let isOn = selection.contains(day)

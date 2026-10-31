@@ -51,7 +51,7 @@ struct DashboardView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets(top: 0, leading: 4, bottom: 0, trailing: 0))
 
-                if whatsNewSeen != WhatsNew.version {
+                if whatsNewSeen != WhatsNew.version && WhatsNew.isFresh {
                     WhatsNewCard { withAnimation { whatsNewSeen = WhatsNew.version } }
                 }
                 focusSection
@@ -329,21 +329,30 @@ struct DashboardView: View {
     private var todaySection: some View {
         let insights = Insights(events: store.events)
         let saved = TimeSaved.load()
+        let counting = !store.events.isEmpty || store.targets.contains(where: \.isMindful) || focus.isAuthorized
         return Section {
-            Button { router.sheet = .insights } label: {
-                HStack {
-                    stat(saved.shortValue, "\(saved.shortUnit) saved")
-                    Spacer()
-                    stat("\(insights.today.resisted)", "resisted today")
-                    Spacer()
-                    stat("\(insights.today.opened)", "opened today")
-                    Image(systemName: "chevron.right")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(.tertiary)
+            if !counting {
+                NavigationLink(value: DashboardRoute.apps) {
+                    Label("Give an app a mindful pause to start counting time saved.", systemImage: "hourglass")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.vertical, 4)
+            } else {
+                Button { router.sheet = .insights } label: {
+                    HStack {
+                        stat(saved.shortValue, "\(saved.shortUnit) saved")
+                        Spacer()
+                        stat("\(insights.today.resisted)", "resisted today")
+                        Spacer()
+                        stat("\(insights.today.opened)", "opened today")
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         } header: {
             Text("Today")
         }
@@ -373,7 +382,7 @@ struct DashboardView: View {
                 }
                 ForEach(focus.workPeriods) { period in
                     focusRow(icon: period.mode == .allowOnly ? "lock.fill" : "moon.fill", tint: .indigo, title: period.name,
-                             detail: "\(period.daysDescription) · \(period.timeRange) · \(period.appsSummary)",
+                             detail: "\(period.shortDays) · \(period.shortTimeRange) · \(period.appsSummary)",
                              isActive: focus.isRunning(period),
                              isOff: !period.isEnabled) {
                         editingFocus = period

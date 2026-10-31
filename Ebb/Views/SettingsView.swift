@@ -57,7 +57,7 @@ struct SettingsView: View {
                 Section("Home Screen") {
                     NavigationLink { WidgetsView() } label: {
                         SettingsRow(icon: "square.grid.2x2.fill", tint: .indigo, title: "Widgets",
-                                    subtitle: "Apps widget, style, colors, Life, and Time Saved")
+                                    subtitle: "Apps, Habits, To-Do, Life, Time Saved, and style")
                     }
                     NavigationLink { AppearanceView() } label: {
                         SettingsRow(icon: "paintpalette", tint: .orange, title: "Colors & wallpaper",

@@ -10,6 +10,12 @@ import UIKit
 
 @main
 struct EbbApp: App {
+    init() {
+        #if DEBUG
+        Self.seedDemoIfAsked()
+        #endif
+    }
+
     @State private var store = LauncherStore()
     @State private var focus = FocusManager()
     @State private var router = Router()
@@ -43,6 +49,32 @@ struct EbbApp: App {
     }
 
     #if DEBUG
+    /// Development builds: `-EbbDemo YES` fills in habits and to-dos for App Store screenshots.
+    private static func seedDemoIfAsked() {
+        guard UserDefaults.standard.bool(forKey: "EbbDemo") else { return }
+        let calendar = Calendar.current
+        let today = Date.now
+        func days(_ offsets: [Int]) -> Set<String> {
+            Set(offsets.compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }.map { DayKey.key(for: $0) })
+        }
+        let created = calendar.date(byAdding: .day, value: -60, to: today)
+        HabitStore.save([
+            Habit(name: "Walk 30 minutes", completions: days([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]), createdAt: created,
+                  allowsSkip: true, cue: "I finish lunch", tinyVersion: "Step outside"),
+            Habit(name: "Read 10 pages", completions: days([1, 2, 4, 5, 6, 7, 8]), createdAt: created,
+                  allowsSkip: true, cue: "I get into bed", tinyVersion: "Read one page"),
+            Habit(name: "Drink water", completions: days([1, 2, 3]), createdAt: created, target: 8,
+                  progress: [DayKey.key(for: today): 5]),
+            Habit(name: "No phone after 10 PM", completions: days([0, 1, 2, 3, 5, 6, 7, 8, 9]), createdAt: created,
+                  allowsSkip: true),
+        ])
+        TodoStore.save([
+            TodoItem(title: "Call the dentist"),
+            TodoItem(title: "Groceries", completedAt: today),
+            TodoItem(title: "Book flights for December"),
+        ])
+    }
+
     /// Development builds: `EBB_SCENE=aurora EBB_ICONS=large` applies a scene at launch and
     /// saves its wallpaper to Photos, for testing scenes without tapping through Ebb.
     @MainActor

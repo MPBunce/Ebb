@@ -88,6 +88,24 @@ nonisolated struct WorkPeriod: Codable, Identifiable, Equatable {
         "\(Self.format(start))–\(Self.format(end))"
     }
 
+    /// "9 AM–5 PM", dropping ":00" so rows stay short.
+    var shortTimeRange: String {
+        "\(Self.shortFormat(start))–\(Self.shortFormat(end))"
+    }
+
+    /// "Mon–Fri", "Sat–Sun", "Every day", or the days themselves.
+    var shortDays: String {
+        let sorted = weekdays.sorted()
+        if sorted == [2, 3, 4, 5, 6] { return "Mon–Fri" }
+        if sorted == [1, 7] { return "Sat–Sun" }
+        return daysDescription
+    }
+
+    static func shortFormat(_ minutes: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: .now) ?? .now
+        return minutes % 60 == 0 ? date.formatted(.dateTime.hour()) : date.formatted(date: .omitted, time: .shortened)
+    }
+
     var daysDescription: String {
         let sorted = weekdays.sorted()
         if sorted == [2, 3, 4, 5, 6] { return "Weekdays" }

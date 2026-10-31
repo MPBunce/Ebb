@@ -192,3 +192,16 @@ struct SetupSharingTests {
         #expect(read.style[AppGroup.Key.backgroundHex] == "#112233")
     }
 }
+
+struct FocusTextTests {
+    @Test func compactDaysAndTimes() {
+        var period = WorkPeriod(name: "Work")
+        period.weekdays = [2, 3, 4, 5, 6]
+        period.start = 9 * 60
+        period.end = 17 * 60
+        #expect(period.shortDays == "Mon–Fri")
+        #expect(!period.shortTimeRange.contains(":00"))
+        period.weekdays = [1, 7]
+        #expect(period.shortDays == "Sat–Sun")
+    }
+}

@@ -10,12 +10,23 @@ import UserNotifications
 
 enum WhatsNew {
     /// Bump with each release that has something worth telling people about.
-    static let version = "1.5"
+    static let version = "1.6"
+
+    /// The card shows for two weeks after the update, then goes away even if not dismissed.
+    static var isFresh: Bool {
+        let key = "whatsNewFirstShown-\(version)"
+        let defaults = UserDefaults.standard
+        guard let first = defaults.object(forKey: key) as? Date else {
+            defaults.set(Date.now, forKey: key)
+            return true
+        }
+        return Date.now.timeIntervalSince(first) < 14 * 86_400
+    }
 
     static let items: [(icon: String, text: String)] = [
-        ("calendar.badge.clock", "Weekly recap: a Sunday summary of your week (turn it on in Settings)"),
-        ("lock.circle", "Habits Today: a Lock Screen widget for today's habits"),
-        ("clock", "Time saved now shows minutes until it's an hour"),
+        ("calendar", "Focus days: one tap for weekdays, weekends, or every day"),
+        ("list.bullet", "Shorter, clearer focus rows on the main screen"),
+        ("hourglass", "Help getting started counting time saved"),
     ]
 }
 
@@ -77,7 +88,11 @@ enum WeeklyRecap {
 
         let content = UNMutableNotificationContent()
         content.title = "Your week in Ebb"
-        content.body = resisted.isEmpty
+        // Worked out now, but delivered Sunday evening. If that's days away, the numbers
+        // would be out of date by then; ask the user to open Ebb instead.
+        let sunday = calendar.nextDate(after: now, matching: DateComponents(hour: 18, minute: 0, weekday: 1), matchingPolicy: .nextTime) ?? now
+        let stale = sunday.timeIntervalSince(now) > 2 * 86_400
+        content.body = stale ? "Open Ebb to see how your week went." : resisted.isEmpty
             ? "A fresh week starts tomorrow.\(habitText)"
             : "\(saved) saved and \(resisted.count) app\(resisted.count == 1 ? "" : "s") resisted.\(habitText)"
         // Sunday at 6 PM.
