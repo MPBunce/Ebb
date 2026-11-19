@@ -70,6 +70,7 @@ enum AppCatalog {
         .init(name: "Voice Memos", scheme: "voicememos://", category: .essentials),
         .init(name: "Home", scheme: "com.apple.home://", category: .essentials),
         .init(name: "TestFlight", scheme: "itms-beta://", category: .essentials),
+        .init(name: "Fitness", scheme: "fitnessapp://", category: .essentials),
         // Built-in apps iOS gives no launch link; these open with an "Open App" Shortcut.
         .init(name: "Camera", scheme: nil, category: .essentials),
         .init(name: "Clock", scheme: nil, category: .essentials),
@@ -78,7 +79,7 @@ enum AppCatalog {
         .init(name: "FaceTime", scheme: nil, category: .essentials),
         .init(name: "Contacts", scheme: nil, category: .essentials),
         .init(name: "Translate", scheme: nil, category: .essentials),
-        .init(name: "Fitness", scheme: nil, category: .essentials),
+
 
         // Communication
         .init(name: "WhatsApp", scheme: "whatsapp://", category: .communication),

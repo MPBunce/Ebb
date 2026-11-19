@@ -51,11 +51,12 @@ nonisolated struct WidgetApp: Codable, Hashable, Identifiable {
     var url: URL?
     var isMindful: Bool
 
-    /// Widgets open apps directly, so there's no stop in Ebb on the way. Mindful apps
-    /// (or ones without a working link) go through Ebb for the pause instead.
-    var widgetURL: URL {
-        if isMindful { return DeepLink.launch(id).url }
-        return url ?? DeepLink.launch(id).url
+    /// The link a widget tap can open straight away, skipping Ebb. Nil when the tap has to
+    /// go through Ebb: mindful apps (for the pause), and apps opened by a Shortcut, which
+    /// iOS doesn't reliably start from a widget.
+    var directURL: URL? {
+        guard !isMindful, let url, url.scheme?.lowercased() != "shortcuts" else { return nil }
+        return url
     }
 
     static func loadAll() -> [WidgetApp] {
@@ -78,6 +79,8 @@ nonisolated enum DeepLink: Equatable {
     case weather
     /// Opens the To-Do page ready to type a new item (the To-Do widget's +).
     case addTodo
+    /// Shortcuts reporting back after "Test it": `ebb://shortcut-ok` or `ebb://shortcut-failed`.
+    case shortcutTested(Bool)
 
     static let scheme = "ebb"
 
@@ -88,6 +91,7 @@ nonisolated enum DeepLink: Equatable {
         case .focus: URL(string: "ebb://focus")!
         case .weather: URL(string: "ebb://weather")!
         case .addTodo: URL(string: "ebb://todo/new")!
+        case .shortcutTested(let worked): URL(string: worked ? "ebb://shortcut-ok" : "ebb://shortcut-failed")!
         }
     }
 
@@ -102,6 +106,10 @@ nonisolated enum DeepLink: Equatable {
             self = .weather
         case "todo":
             self = .addTodo
+        case "shortcut-ok":
+            self = .shortcutTested(true)
+        case "shortcut-failed":
+            self = .shortcutTested(false)
         case "launch":
             guard let raw = url.pathComponents.dropFirst().first, let id = UUID(uuidString: raw) else { return nil }
             self = .launch(id)

@@ -102,6 +102,26 @@ struct LauncherConfigurationIntent: WidgetConfigurationIntent {
     var side: WidgetSideOption
 }
 
+/// Opens an app straight from the widget. As an intent, iOS opens the link itself instead
+/// of launching Ebb first the way a plain widget link does.
+struct OpenAppDirectlyIntent: AppIntent {
+    static let title: LocalizedStringResource = "Open App"
+    static let isDiscoverable = false
+
+    @Parameter(title: "Link")
+    var url: URL
+
+    init() {}
+
+    init(url: URL) {
+        self.url = url
+    }
+
+    func perform() async throws -> some IntentResult & OpensIntent {
+        .result(opensIntent: OpenURLIntent(url))
+    }
+}
+
 // MARK: - Timeline
 
 struct LauncherEntry: TimelineEntry {
@@ -224,13 +244,18 @@ struct LauncherWidgetView: View {
     private func column(_ apps: [WidgetApp], alignment: ListAlignment) -> some View {
         VStack(alignment: alignment.horizontal, spacing: rowSpacing) {
             ForEach(apps) { app in
-                Link(destination: DeepLink.launch(app.id).url) {
-                    Text(app.name)
-                        .font(.system(size: textSize, weight: .light))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .frame(maxWidth: .infinity, alignment: alignment.frame)
-                        .contentShape(Rectangle())
+                let label = Text(app.name)
+                    .font(.system(size: textSize, weight: .light))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .frame(maxWidth: .infinity, alignment: alignment.frame)
+                    .contentShape(Rectangle())
+                if let url = app.directURL {
+                    // Opens the app itself, with no stop in Ebb.
+                    Button(intent: OpenAppDirectlyIntent(url: url)) { label }
+                        .buttonStyle(.plain)
+                } else {
+                    Link(destination: DeepLink.launch(app.id).url) { label }
                 }
             }
         }

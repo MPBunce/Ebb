@@ -252,20 +252,22 @@ final class LauncherStore {
     // MARK: Launching
 
     /// Opens an app, or holds it behind a mindful pause first.
-    func requestLaunch(_ target: LaunchTarget) {
+    func requestLaunch(_ target: LaunchTarget, retryIfRefused: Bool = false) {
         if target.isMindful {
             pendingPause = target
         } else {
-            open(target, intention: nil)
+            open(target, intention: nil, retryIfRefused: retryIfRefused)
         }
     }
 
-    func requestLaunch(id: UUID) {
+    func requestLaunch(id: UUID, retryIfRefused: Bool = false) {
         guard let target = target(id: id) else { return }
-        requestLaunch(target)
+        requestLaunch(target, retryIfRefused: retryIfRefused)
     }
 
-    func open(_ target: LaunchTarget, intention: String?) {
+    /// `retryIfRefused` tries once more a moment later, for launches made just as Ebb
+    /// opens, when iOS can still say no.
+    func open(_ target: LaunchTarget, intention: String?, retryIfRefused: Bool = false) {
         pendingPause = nil
         guard let url = target.url else {
             failedLaunch = target
@@ -273,7 +275,16 @@ final class LauncherStore {
         }
         log(target, outcome: .opened, intention: intention)
         UIApplication.shared.open(url) { [weak self] success in
-            if !success { self?.failedLaunch = target }
+            guard !success else { return }
+            guard retryIfRefused else {
+                self?.failedLaunch = target
+                return
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                UIApplication.shared.open(url) { success in
+                    if !success { self?.failedLaunch = target }
+                }
+            }
         }
     }
 

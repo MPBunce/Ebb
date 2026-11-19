@@ -733,6 +733,7 @@ enum AppStoreSearchView {
 /// (Camera, Clock, and some App Store apps). Done once per app.
 struct ShortcutSetupView: View {
     @Environment(\.openURL) private var openURL
+    @Environment(Router.self) private var router
     let name: String
     let bundleID: String?
     /// "2 of 3" when several apps are being set up in a row.
@@ -750,6 +751,18 @@ struct ShortcutSetupView: View {
         self.position = position
         self.onFinish = onFinish
         _shortcutName = State(initialValue: shortcutName)
+    }
+
+    /// Runs the shortcut, then Shortcuts reports back to Ebb whether it worked.
+    static func testURL(for shortcutName: String) -> URL? {
+        var components = URLComponents(string: "shortcuts://x-callback-url/run-shortcut")
+        components?.queryItems = [
+            URLQueryItem(name: "name", value: shortcutName),
+            URLQueryItem(name: "x-success", value: DeepLink.shortcutTested(true).url.absoluteString),
+            URLQueryItem(name: "x-error", value: DeepLink.shortcutTested(false).url.absoluteString),
+            URLQueryItem(name: "x-cancel", value: DeepLink.shortcutTested(false).url.absoluteString),
+        ]
+        return components?.url
     }
 
     var body: some View {
@@ -798,9 +811,8 @@ struct ShortcutSetupView: View {
 
                 if openedShortcuts {
                     Button {
-                        var components = URLComponents(string: "shortcuts://run-shortcut")
-                        components?.queryItems = [URLQueryItem(name: "name", value: shortcutName)]
-                        if let url = components?.url { openURL(url) }
+                        router.shortcutTest = nil
+                        if let url = Self.testURL(for: shortcutName) { openURL(url) }
                     } label: {
                         Label("Test it", systemImage: "play")
                             .frame(maxWidth: .infinity)
@@ -811,9 +823,23 @@ struct ShortcutSetupView: View {
                     .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 0, trailing: 0))
                 }
             } footer: {
-                if openedShortcuts {
-                    Text("Test it should open \(name). If Shortcuts says it can't find the shortcut, check its name matches “\(shortcutName)” exactly.")
+                if openedShortcuts, router.shortcutTest == nil {
+                    Text("Test it opens \(name), then comes back here to confirm it worked.")
                 }
+            }
+
+            if let worked = router.shortcutTest {
+                Section {
+                    if worked {
+                        Label("It works. Tap Done to add \(name).", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    } else {
+                        Label("Shortcuts couldn't run “\(shortcutName)”. Check the shortcut's name matches exactly, or change the name below.",
+                              systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .sensoryFeedback(worked ? .success : .warning, trigger: worked)
             }
 
             Section {
@@ -825,6 +851,8 @@ struct ShortcutSetupView: View {
         }
         .navigationTitle(name)
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { router.shortcutTest = nil }
+        .onChange(of: shortcutName) { router.shortcutTest = nil }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Skip") { onFinish(nil) }

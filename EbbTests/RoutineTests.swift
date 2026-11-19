@@ -205,3 +205,28 @@ struct FocusTextTests {
         #expect(period.shortDays == "Sat–Sun")
     }
 }
+
+struct DirectLaunchTests {
+    @Test func plainAppsOpenDirectly() {
+        let id = UUID()
+        let plain = WidgetApp(id: id, name: "Maps", url: URL(string: "maps://"), isMindful: false)
+        #expect(plain.directURL == URL(string: "maps://"))
+
+        let mindful = WidgetApp(id: id, name: "Instagram", url: URL(string: "instagram://"), isMindful: true)
+        #expect(mindful.directURL == nil)
+
+        let shortcut = WidgetApp(id: id, name: "Camera",
+                                 url: URL(string: "shortcuts://run-shortcut?name=Open%20Camera"), isMindful: false)
+        #expect(shortcut.directURL == nil)
+        #expect(WidgetApp(id: id, name: "Broken", url: nil, isMindful: false).directURL == nil)
+    }
+
+    @Test func shortcutTestLinksRoundTrip() {
+        #expect(DeepLink(url: DeepLink.shortcutTested(true).url) == .shortcutTested(true))
+        #expect(DeepLink(url: DeepLink.shortcutTested(false).url) == .shortcutTested(false))
+        let test = ShortcutSetupView.testURL(for: "Open Camera")!.absoluteString
+        #expect(test.hasPrefix("shortcuts://x-callback-url/run-shortcut"))
+        #expect(test.contains("name=Open%20Camera"))
+        #expect(test.contains("x-success=ebb://shortcut-ok"))
+    }
+}

@@ -35,6 +35,8 @@ final class Router {
     var focusNewTodo = false
     /// A setup someone shared, waiting for the user to confirm importing it.
     var importedSetup: EbbSetup?
+    /// The answer from Shortcuts after "Test it": true if the shortcut ran, false if not.
+    var shortcutTest: Bool?
 
     /// Shows the breather if the block screen asked for one (via its notification).
     func checkForPendingBreather() {
@@ -64,9 +66,14 @@ final class Router {
             // activating; iOS won't open another app before then.
             let isMindful = store.target(id: id)?.isMindful ?? false
             if isMindful { sheet = nil }
-            Task {
-                try? await Task.sleep(for: .milliseconds(isMindful ? 400 : 150))
-                store.requestLaunch(id: id)
+            Task { @MainActor in
+                if isMindful {
+                    // Let any open sheet finish closing before the pause covers the screen.
+                    try? await Task.sleep(for: .milliseconds(400))
+                } else {
+                    await Self.untilActive()
+                }
+                store.requestLaunch(id: id, retryIfRefused: true)
             }
         case .addTodo:
             sheet = nil
@@ -74,10 +81,29 @@ final class Router {
             pendingRoute = .todos
         case .weather:
             // The Weather widget opens Apple Weather, through Ebb like app launches.
-            Task {
-                try? await Task.sleep(for: .milliseconds(150))
+            Task { @MainActor in
+                await Self.untilActive()
                 if let url = URL(string: "weather://") { await UIApplication.shared.open(url) }
             }
+        case .shortcutTested(let worked):
+            shortcutTest = worked
+        }
+    }
+
+    /// Waits until Ebb is the active app, which iOS requires before it opens another app.
+    /// Gives up after a second, so a launch never hangs.
+    @MainActor
+    static func untilActive() async {
+        if UIApplication.shared.applicationState == .active { return }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { @MainActor in
+                for await _ in NotificationCenter.default.notifications(named: UIApplication.didBecomeActiveNotification) {
+                    return
+                }
+            }
+            group.addTask { try? await Task.sleep(for: .seconds(1)) }
+            await group.next()
+            group.cancelAll()
         }
     }
 }
