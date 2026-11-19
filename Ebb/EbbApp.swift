@@ -61,8 +61,12 @@ struct EbbApp: App {
         HabitStore.save([
             Habit(name: "Walk 30 minutes", completions: days([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]), createdAt: created,
                   allowsSkip: true, cue: "I finish lunch", tinyVersion: "Step outside"),
-            Habit(name: "Read 10 pages", completions: days([1, 2, 4, 5, 6, 7, 8]), createdAt: created,
-                  allowsSkip: true, cue: "I get into bed", tinyVersion: "Read one page"),
+            // Slipped yesterday, so it shows "Don't miss twice".
+            Habit(name: "Read 10 pages", completions: days([2, 3, 4, 5, 6, 7, 8]), createdAt: created,
+                  cue: "I get into bed", tinyVersion: "Read one page"),
+            // Done about one day in three for weeks, so Ebb suggests making it smaller.
+            Habit(name: "Write in a journal", completions: days(Array(stride(from: 3, through: 40, by: 3))), createdAt: created,
+                  cue: "I sit down after dinner", tinyVersion: "Write one sentence"),
             Habit(name: "Drink water", completions: days([1, 2, 3]), createdAt: created, target: 8,
                   progress: [DayKey.key(for: today): 5]),
             Habit(name: "No phone after 10 PM", completions: days([0, 1, 2, 3, 5, 6, 7, 8, 9]), createdAt: created,

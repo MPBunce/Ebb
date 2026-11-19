@@ -107,15 +107,7 @@ struct HabitWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: DailyEntry
 
-    private var limit: Int {
-        switch family {
-        case .systemSmall: 4
-        case .systemMedium: 4
-        default: 8
-        }
-    }
-
-    private var showsWeek: Bool { family != .systemSmall }
+    private var isLarge: Bool { family == .systemLarge }
 
     var body: some View {
         Group {
@@ -132,46 +124,133 @@ struct HabitWidgetView: View {
 
     @ViewBuilder
     private func content(_ habits: [Habit]) -> some View {
+        let day = entry.date
+        let due = habits.filter { $0.isExpected(on: day) }
+        // Still to do, in the order the day runs (by reminder time), then done, then days off.
+        let pending = due.filter { !$0.isDone(on: day) }
+            .enumerated()
+            .sorted { ($0.element.reminderMinutes ?? Int.max, $0.offset) < ($1.element.reminderMinutes ?? Int.max, $1.offset) }
+            .map(\.element)
+        let done = due.filter { $0.isDone(on: day) }
+        let resting = habits.filter { !$0.isExpected(on: day) }
+
         if habits.isEmpty {
             EmptyRoutine(icon: "checklist", text: "Add habits in Ebb › Habits")
+        } else if !due.isEmpty && pending.isEmpty {
+            allDone(count: due.count)
+        } else if family == .systemSmall, let next = pending.first {
+            nextUp(next, remaining: pending.count, total: due.count)
         } else {
-            // Today's habits first; ones with the day off sink to the bottom.
-            let due = habits.filter { $0.schedule.isScheduled(entry.date) }
-            let shown = Array((due + habits.filter { !$0.schedule.isScheduled(entry.date) }).prefix(limit))
-            let doneToday = due.filter { $0.isDone(on: entry.date) }.count
-            VStack(alignment: .leading, spacing: family == .systemLarge ? 12 : 8) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Habits").font(.caption).opacity(0.6)
-                    Spacer()
-                    Text("\(doneToday)/\(due.count) today")
-                        .font(.caption)
-                        .monospacedDigit()
-                        .opacity(0.6)
-                }
-                ForEach(shown) { habit in
-                    row(habit)
+            let limit = isLarge ? 7 : 3
+            VStack(alignment: .leading, spacing: isLarge ? 12 : 7) {
+                header(done: done.count, total: due.count)
+                ForEach(Array((pending + done + resting).prefix(limit))) { habit in
+                    row(habit, isPending: !habit.isDone(on: day) && habit.isExpected(on: day))
                 }
                 Spacer(minLength: 0)
             }
         }
     }
 
-    private func row(_ habit: Habit) -> some View {
+    private func header(done: Int, total: Int) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Habits").font(.caption).opacity(0.6)
+            Spacer()
+            Text("\(done)/\(total) today")
+                .font(.caption)
+                .monospacedDigit()
+                .opacity(0.6)
+        }
+    }
+
+    /// A finished day: a quiet reward instead of a list of ticks.
+    private func allDone(count: Int) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: family == .systemSmall ? 34 : 40, weight: .ultraLight))
+            Text("All done today")
+                .font(family == .systemSmall ? .subheadline : .headline)
+            Text(count == 1 ? "1 habit" : "\(count) habits")
+                .font(.caption)
+                .opacity(0.6)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// Small widget: just the next habit, big, with one tick. Ticking it brings up the next.
+    private func nextUp(_ habit: Habit, remaining: Int, total: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Next").font(.caption).opacity(0.6)
+                Spacer()
+                Text("\(total - remaining)/\(total)").font(.caption).monospacedDigit().opacity(0.6)
+            }
+            Spacer(minLength: 0)
+            Text(habit.name)
+                .font(.headline)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+            if let line = nudge(for: habit) {
+                Text(line.text)
+                    .font(.caption2)
+                    .lineLimit(2)
+                    .foregroundStyle(line.isComeback ? AnyShapeStyle(.orange) : AnyShapeStyle(.primary.opacity(0.6)))
+            }
+            Spacer(minLength: 0)
+            Button(intent: ToggleHabitIntent(id: habit.id)) {
+                HStack(spacing: 6) {
+                    if habit.auto != nil {
+                        Image(systemName: "sparkles")
+                    } else {
+                        Check(isOn: false, size: 26)
+                    }
+                    if habit.isCounted {
+                        Text("\(habit.count(on: entry.date))/\(habit.target)").font(.caption).monospacedDigit()
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(habit.auto != nil)
+        }
+    }
+
+    /// The line under a habit still to do: the never-miss-twice nudge, or its cue.
+    private func nudge(for habit: Habit) -> (text: String, isComeback: Bool)? {
+        if habit.needsComeback(asOf: entry.date) {
+            // The medium widget is too narrow for the small version as well.
+            guard family != .systemMedium, let tiny = habit.tinyVersion else { return ("Don't miss twice", true) }
+            return ("Don't miss twice · at least \(tiny.lowercased())", true)
+        }
+        if let cue = habit.cueText { return (cue, false) }
+        if let tiny = habit.tinyVersion { return ("At least: \(tiny.lowercased())", false) }
+        return nil
+    }
+
+    private func row(_ habit: Habit, isPending: Bool) -> some View {
         let done = habit.isDone(on: entry.date)
-        let resting = !habit.schedule.isScheduled(entry.date)
+        let resting = !habit.isExpected(on: entry.date)
         return Button(intent: ToggleHabitIntent(id: habit.id)) {
-            HStack(spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
                 if habit.auto != nil && !done {
                     Image(systemName: "sparkles")
-                        .font(.system(size: family == .systemLarge ? 18 : 15, weight: .light))
+                        .font(.system(size: isLarge ? 18 : 15, weight: .light))
                         .opacity(0.55)
                 } else {
-                    Check(isOn: done, size: family == .systemLarge ? 22 : 18)
+                    Check(isOn: done, size: isLarge ? 22 : 18)
                 }
-                Text(habit.name)
-                    .font(family == .systemLarge ? .body : .subheadline)
-                    .lineLimit(1)
-                    .opacity(done || resting ? 0.5 : 1)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(habit.name)
+                        .font(isLarge ? .body : .subheadline)
+                        .lineLimit(1)
+                        .opacity(done || resting ? 0.5 : 1)
+                    if isPending, let line = nudge(for: habit) {
+                        Text(line.text)
+                            .font(.caption2)
+                            .lineLimit(1)
+                            .foregroundStyle(line.isComeback ? AnyShapeStyle(.orange) : AnyShapeStyle(.primary.opacity(0.55)))
+                    }
+                }
                 Spacer(minLength: 4)
                 if habit.isCounted && !done {
                     Text("\(habit.count(on: entry.date))/\(habit.target)")
@@ -179,11 +258,9 @@ struct HabitWidgetView: View {
                         .monospacedDigit()
                         .opacity(0.6)
                 }
-                if showsWeek {
-                    week(habit)
-                }
+                week(habit)
                 let streak = habit.streak(asOf: entry.date)
-                if streak > 1 && family != .systemSmall {
+                if streak > 1 {
                     Text(habit.streakText(asOf: entry.date, short: true))
                         .font(.caption)
                         .monospacedDigit()
@@ -196,14 +273,18 @@ struct HabitWidgetView: View {
         .buttonStyle(.plain)
     }
 
-    /// The last six days as dots, so you can see the pattern at a glance.
+    /// The last seven days, today last, so ticking today visibly extends the chain.
     private func week(_ habit: Habit) -> some View {
-        let days = DayKey.days(endingOn: entry.date, count: 7).dropLast()
-        return HStack(spacing: 4) {
-            ForEach(Array(days), id: \.self) { day in
-                Circle()
-                    .fill(.primary.opacity(habit.isDone(on: day) ? 0.85 : habit.schedule.isScheduled(day) ? 0.15 : 0.05))
-                    .frame(width: 6, height: 6)
+        HStack(spacing: 4) {
+            ForEach(DayKey.days(endingOn: entry.date, count: 7), id: \.self) { day in
+                let isToday = Calendar.current.isDate(day, inSameDayAs: entry.date)
+                if habit.isDone(on: day) {
+                    Circle().fill(.primary.opacity(0.85)).frame(width: 6, height: 6)
+                } else if isToday && habit.isExpected(on: day) {
+                    Circle().strokeBorder(.primary.opacity(0.5), lineWidth: 1).frame(width: 6, height: 6)
+                } else {
+                    Circle().fill(.primary.opacity(habit.isExpected(on: day) ? 0.15 : 0.05)).frame(width: 6, height: 6)
+                }
             }
         }
         .accessibilityHidden(true)
@@ -339,7 +420,7 @@ struct HabitRingView: View {
     let entry: HabitRingEntry
 
     var body: some View {
-        let due = HabitStore.load().filter { $0.schedule.isScheduled(entry.date) }
+        let due = HabitStore.load().filter { $0.isExpected(on: entry.date) }
         let done = due.filter { $0.isDone(on: entry.date) }.count
         let fraction = due.isEmpty ? 0 : Double(done) / Double(due.count)
         Group {

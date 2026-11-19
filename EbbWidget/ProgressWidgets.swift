@@ -798,6 +798,8 @@ struct TimeSavedWidgetView: View {
         case .minutes:
             return (minutes.formatted(), minutes == 1 ? "minute" : "minutes")
         case .hours:
+            // "12 minutes" reads better than "0.2 hours" until there's an hour.
+            if minutes < 60 { return (minutes.formatted(), minutes == 1 ? "minute" : "minutes") }
             let hours = Double(minutes) / 60
             let text = hours < 10 ? hours.formatted(.number.precision(.fractionLength(1))) : Int(hours).formatted()
             return (text, minutes == 60 ? "hour" : "hours")

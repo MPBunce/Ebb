@@ -87,8 +87,9 @@ struct HabitsView: View {
 
     private var active: [Habit] { all.filter { !$0.isArchived } }
     private var archived: [Habit] { all.filter(\.isArchived) }
-    private var dueToday: [Habit] { active.filter { $0.schedule.isScheduled(.now) } }
-    private var restDay: [Habit] { active.filter { !$0.schedule.isScheduled(.now) } }
+    private var dueToday: [Habit] { active.filter { $0.isExpected(on: .now) } }
+    private var restDay: [Habit] { active.filter { !$0.isExpected(on: .now) } }
+    private var needsTune: [Habit] { active.filter { $0.tune() != nil } }
     private var unusedAuto: [HabitAuto] {
         HabitAuto.allCases.filter { kind in !all.contains { $0.auto == kind } }
     }
@@ -142,6 +143,32 @@ struct HabitsView: View {
                     Label("No habits yet. Add your own above, or start small with one below.", systemImage: "checklist")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            if !needsTune.isEmpty {
+                Section {
+                    ForEach(needsTune) { habit in
+                        NavigationLink {
+                            HabitDetailView(habitID: habit.id)
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(habit.name)
+                                    Text(habit.tune()?.title ?? "")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: habit.tune()?.kind == .smaller ? "arrow.down.right.circle" : "arrow.up.right.circle")
+                                    .foregroundStyle(.indigo)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Tune-ups")
+                } footer: {
+                    Text("Habits stick when they're just hard enough. Tap one to adjust it.")
                 }
             }
 
@@ -322,16 +349,11 @@ private struct HabitRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(habit.name)
                         .foregroundStyle(.primary)
+                    if habit.needsComeback(asOf: .now) {
+                        ComebackTag(habit: habit)
+                    }
                     HStack(spacing: 6) {
-                        HStack(spacing: 4) {
-                            ForEach(DayKey.days(endingOn: .now, count: 7), id: \.self) { day in
-                                let scheduled = habit.schedule.isScheduled(day)
-                                Circle()
-                                    .fill(habit.isDone(on: day) ? Color.indigo : Color.secondary.opacity(scheduled ? 0.25 : 0.08))
-                                    .frame(width: 7, height: 7)
-                            }
-                        }
-                        .accessibilityHidden(true)
+                        WeekDots(habit: habit, size: 7, spacing: 4)
                         Text(subtitle)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -352,12 +374,49 @@ private struct HabitRow: View {
 
     private var subtitle: String {
         var parts: [String] = []
+        if habit.isSkipped(on: .now) { parts.append("Skipped today") }
         if let cue = habit.cueText { parts.append(cue) }
         if habit.auto != nil { parts.append("Automatic") }
         if habit.isCounted { parts.append("\(habit.count(on: .now)) of \(habit.target)") }
         if case .weekly(let times) = habit.schedule { parts.append("\(habit.doneThisWeek(.now)) of \(times) this week") }
         else if habit.schedule != .daily { parts.append(habit.schedule.label) }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// The last seven days, today last: filled when done, a ring for today until it is,
+/// faint on days off and skipped days.
+struct WeekDots: View {
+    let habit: Habit
+    var size: CGFloat = 7
+    var spacing: CGFloat = 4
+
+    var body: some View {
+        HStack(spacing: spacing) {
+            ForEach(DayKey.days(endingOn: .now, count: 7), id: \.self) { day in
+                let isToday = Calendar.current.isDateInToday(day)
+                if habit.isDone(on: day) {
+                    Circle().fill(Color.indigo).frame(width: size, height: size)
+                } else if isToday && habit.isExpected(on: day) {
+                    Circle().strokeBorder(Color.secondary.opacity(0.6), lineWidth: 1).frame(width: size, height: size)
+                } else {
+                    Circle().fill(Color.secondary.opacity(habit.isExpected(on: day) ? 0.25 : 0.08)).frame(width: size, height: size)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Never miss twice: shown on a habit that slipped last time and isn't done yet.
+struct ComebackTag: View {
+    let habit: Habit
+
+    var body: some View {
+        Text(habit.tinyVersion.map { "Don't miss twice · at least \($0.lowercased())" } ?? "Don't miss twice")
+            .font(.caption)
+            .foregroundStyle(.orange)
+            .lineLimit(1)
     }
 }
 
@@ -630,6 +689,49 @@ struct HabitDetailView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(EdgeInsets())
 
+            if habit.needsComeback(asOf: .now) {
+                Section {
+                    Label {
+                        Text(habit.tinyVersion.map { "Last time slipped. Don't miss twice: even \($0.lowercased()) counts today." }
+                             ?? "Last time slipped. Don't miss twice: even a small version counts today.")
+                    } icon: {
+                        Image(systemName: "arrow.uturn.forward.circle").foregroundStyle(.orange)
+                    }
+                    .font(.subheadline)
+                }
+            }
+
+            if habit.isSkipped(on: .now) || habit.canSkip(on: .now) || (habit.isExpected(on: .now) && !done && habit.auto == nil && !habit.schedule.isWeekly) {
+                Section {
+                    if habit.isSkipped(on: .now) {
+                        Button("Undo today's skip") { update { $0.toggleSkip(on: .now) } }
+                    } else {
+                        Button("Skip today") { update { $0.toggleSkip(on: .now) } }
+                            .disabled(!habit.canSkip(on: .now))
+                    }
+                } footer: {
+                    let left = habit.skipsLeft(in: .now)
+                    Text(habit.isSkipped(on: .now)
+                         ? "Today's set aside, so your streak is safe."
+                         : left > 0 ? "For sick days or travel. Doesn't break your streak. \(left) of \(Habit.skipsPerMonth) left this month."
+                                    : "You've used this month's \(Habit.skipsPerMonth) skips.")
+                }
+            }
+
+            if let tune = habit.tune() {
+                Section {
+                    ForEach(tune.options) { option in
+                        Button(option.title) { update { $0.applyTune(option) } }
+                    }
+                    Button("Keep it as is") { update { $0.quietTune() } }
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text(tune.title)
+                } footer: {
+                    Text(tune.detail(for: habit))
+                }
+            }
+
             Section {
                 HStack(spacing: 0) {
                     stat(habit.streakText(), "current streak")
@@ -637,6 +739,10 @@ struct HabitDetailView: View {
                     stat(habit.monthRate().map { $0.formatted(.percent.precision(.fractionLength(0))) } ?? "–", "this month")
                 }
                 .padding(.vertical, 6)
+                let forgiving = habit.neverMissedTwice(asOf: .now)
+                if forgiving > habit.streak(asOf: .now) {
+                    LabeledContent("Never missed twice", value: "\(forgiving) days")
+                }
                 if habit.cueText != nil || habit.tinyVersion != nil {
                     VStack(alignment: .leading, spacing: 4) {
                         Text([habit.cueText.map { "\($0), I will \(habit.name.lowercased())." }, habit.tinyVersion.map { "At least: \($0)." }]
@@ -749,7 +855,9 @@ private struct HabitHeatMap: View {
                             } else {
                                 let done = habit.isDone(on: date)
                                 RoundedRectangle(cornerRadius: cell * 0.25)
-                                    .fill(done ? Color.indigo : Color.secondary.opacity(habit.schedule.isScheduled(date) ? 0.15 : 0.05))
+                                    .fill(done ? Color.indigo
+                                          : habit.isSkipped(on: date) ? Color.indigo.opacity(0.18)
+                                          : Color.secondary.opacity(habit.schedule.isScheduled(date) ? 0.15 : 0.05))
                                     .overlay {
                                         if calendar.isDate(date, inSameDayAs: today) {
                                             RoundedRectangle(cornerRadius: cell * 0.25)
@@ -761,7 +869,7 @@ private struct HabitHeatMap: View {
                                     .onTapGesture { onTap(date) }
                                     .accessibilityElement()
                                     .accessibilityLabel(date.formatted(date: .abbreviated, time: .omitted))
-                                    .accessibilityValue(done ? "Done" : "Not done")
+                                    .accessibilityValue(done ? "Done" : habit.isSkipped(on: date) ? "Skipped" : "Not done")
                                     .accessibilityAddTraits(.isButton)
                             }
                         }
@@ -1007,19 +1115,14 @@ struct DashboardHabitRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(habit.name)
                     .foregroundStyle(done ? .secondary : .primary)
-                if let line = detail {
+                if habit.needsComeback(asOf: .now) {
+                    ComebackTag(habit: habit)
+                } else if let line = detail {
                     Text(line).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
             }
             Spacer(minLength: 6)
-            HStack(spacing: 3) {
-                ForEach(DayKey.days(endingOn: .now, count: 6), id: \.self) { day in
-                    Circle()
-                        .fill(habit.isDone(on: day) ? Color.indigo : Color.secondary.opacity(habit.schedule.isScheduled(day) ? 0.25 : 0.08))
-                        .frame(width: 6, height: 6)
-                }
-            }
-            .accessibilityHidden(true)
+            WeekDots(habit: habit, size: 6, spacing: 3)
             let streak = habit.streak(asOf: .now)
             if streak > 0 {
                 HStack(spacing: 2) {

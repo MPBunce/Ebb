@@ -25,7 +25,7 @@ nonisolated enum HabitReminders {
             guard let day = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now)) else { continue }
             for habit in withReminders {
                 guard let minutes = habit.reminderMinutes,
-                      habit.schedule.isScheduled(day, calendar: calendar),
+                      habit.isExpected(on: day, calendar: calendar),
                       !habit.isDone(on: day, calendar: calendar),
                       let fire = calendar.date(byAdding: .minute, value: minutes, to: day), fire > now
                 else { continue }
@@ -34,9 +34,15 @@ nonisolated enum HabitReminders {
 
                 let content = UNMutableNotificationContent()
                 content.title = habit.name
-                content.body = habit.isCounted
-                    ? "\(habit.count(on: day, calendar: calendar)) of \(habit.target) so far today."
-                    : "Still to do today."
+                // Today and tomorrow only: further out, the day before hasn't happened yet.
+                if offset < 2, habit.needsComeback(asOf: day, calendar: calendar) {
+                    content.body = habit.tinyVersion.map { "Last time slipped. Don't miss twice: just \($0.lowercased()) today." }
+                        ?? "Last time slipped. Don't miss twice: even a small version counts."
+                } else {
+                    content.body = habit.isCounted
+                        ? "\(habit.count(on: day, calendar: calendar)) of \(habit.target) so far today."
+                        : "Still to do today."
+                }
                 content.sound = .default
                 content.threadIdentifier = "habits"
                 let parts = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fire)

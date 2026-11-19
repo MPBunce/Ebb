@@ -147,6 +147,13 @@ nonisolated struct Habit: Codable, Identifiable, Equatable {
     var cue: String? = nil
     /// The two-minute version for hard days, like "put on my running shoes".
     var tinyVersion: String? = nil
+    /// Days set aside in advance (sick, travelling), as `DayKey`s. They count as days off,
+    /// not misses, so they don't break a streak. Limited to `skipsPerMonth`.
+    var skips: Set<String> = []
+    /// No "make it smaller / bigger" suggestion before this, after one was used or dismissed.
+    var tuneQuietUntil: Date? = nil
+
+    static let skipsPerMonth = 2
 
     var isCounted: Bool { target > 1 }
 
@@ -160,6 +167,89 @@ nonisolated struct Habit: Codable, Identifiable, Equatable {
 
     func isDone(on date: Date, calendar: Calendar = .current) -> Bool {
         completions.contains(DayKey.key(for: date, calendar: calendar))
+    }
+
+    func isSkipped(on date: Date, calendar: Calendar = .current) -> Bool {
+        skips.contains(DayKey.key(for: date, calendar: calendar))
+    }
+
+    /// Scheduled and not set aside: a day it's meant to be done.
+    func isExpected(on date: Date, calendar: Calendar = .current) -> Bool {
+        schedule.isScheduled(date, calendar: calendar) && !isSkipped(on: date, calendar: calendar)
+    }
+
+    /// Skips still free in the month containing `date`.
+    func skipsLeft(in date: Date, calendar: Calendar = .current) -> Int {
+        guard let month = calendar.dateInterval(of: .month, for: date) else { return 0 }
+        let used = skips.compactMap { DayKey.date(from: $0, calendar: calendar) }.filter { month.contains($0) }.count
+        return max(Self.skipsPerMonth - used, 0)
+    }
+
+    /// Whether a day can be set aside: a day it's due, not done, with a skip left. Weekly
+    /// habits already let you pick your days, so they don't skip.
+    func canSkip(on date: Date, calendar: Calendar = .current) -> Bool {
+        !schedule.isWeekly && auto == nil && schedule.isScheduled(date, calendar: calendar)
+            && !isDone(on: date, calendar: calendar) && !isSkipped(on: date, calendar: calendar)
+            && skipsLeft(in: date, calendar: calendar) > 0
+    }
+
+    /// Sets a day aside, or takes the skip back.
+    mutating func toggleSkip(on date: Date, calendar: Calendar = .current) {
+        let key = DayKey.key(for: date, calendar: calendar)
+        if skips.contains(key) {
+            skips.remove(key)
+        } else if canSkip(on: date, calendar: calendar) {
+            skips.insert(key)
+        }
+    }
+
+    /// The most recent day before `date` it was meant to be done, within two weeks.
+    func lastExpectedDay(before date: Date, calendar: Calendar = .current) -> Date? {
+        let start = startDay(calendar: calendar) ?? calendar.startOfDay(for: date)
+        var day = calendar.startOfDay(for: date)
+        for _ in 0..<14 {
+            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { return nil }
+            day = previous
+            if day < start { return nil }
+            if isExpected(on: day, calendar: calendar) { return day }
+        }
+        return nil
+    }
+
+    /// Never miss twice: due today, not done yet, and the last time it was due slipped.
+    func needsComeback(asOf date: Date, calendar: Calendar = .current) -> Bool {
+        guard !schedule.isWeekly, isExpected(on: date, calendar: calendar), !isDone(on: date, calendar: calendar),
+              let previous = lastExpectedDay(before: date, calendar: calendar) else { return false }
+        return !isDone(on: previous, calendar: calendar)
+    }
+
+    /// Days it's been due in a row without two misses back to back: the forgiving streak.
+    /// One slip doesn't reset it; only missing twice in a row does.
+    func neverMissedTwice(asOf date: Date, calendar: Calendar = .current) -> Int {
+        guard !schedule.isWeekly, let start = startDay(calendar: calendar) else { return 0 }
+        let today = calendar.startOfDay(for: date)
+        var day = today
+        var run = 0
+        var missedLast = false
+        var steps = 0
+        while day >= start, steps < 1500 {
+            steps += 1
+            defer { day = calendar.date(byAdding: .day, value: -1, to: day) ?? start.addingTimeInterval(-1) }
+            guard isExpected(on: day, calendar: calendar) else { continue }
+            if isDone(on: day, calendar: calendar) {
+                run += 1
+                missedLast = false
+            } else if day == today {
+                continue
+            } else if missedLast {
+                // Two in a row: the slip before this one ends the run.
+                return max(run - 1, 0)
+            } else {
+                run += 1
+                missedLast = true
+            }
+        }
+        return run
     }
 
     /// How many it's at on a day: the target once done.
@@ -176,6 +266,7 @@ nonisolated struct Habit: Codable, Identifiable, Equatable {
             return
         }
         let next = (progress[key] ?? 0) + 1
+        skips.remove(key)
         if next >= target {
             completions.insert(key)
             progress[key] = nil
@@ -225,7 +316,7 @@ nonisolated struct Habit: Codable, Identifiable, Equatable {
         while day >= start, steps < 1500 {
             steps += 1
             defer { day = calendar.date(byAdding: .day, value: -1, to: day) ?? start.addingTimeInterval(-1) }
-            guard schedule.isScheduled(day, calendar: calendar) else { continue }
+            guard isExpected(on: day, calendar: calendar) else { continue }
             if isDone(on: day, calendar: calendar) {
                 count += 1
             } else if day == today {
@@ -275,7 +366,7 @@ nonisolated struct Habit: Codable, Identifiable, Equatable {
 nonisolated extension Habit {
     enum CodingKeys: String, CodingKey {
         case id, name, completions, createdAt, schedule, target, progress, allowsSkip, reminderMinutes, auto, isArchived
-        case cue, tinyVersion
+        case cue, tinyVersion, skips, tuneQuietUntil
     }
 
     /// Habits saved by earlier versions only had a name and completions.
@@ -294,6 +385,8 @@ nonisolated extension Habit {
         isArchived = try c.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
         cue = try c.decodeIfPresent(String.self, forKey: .cue)
         tinyVersion = try c.decodeIfPresent(String.self, forKey: .tinyVersion)
+        skips = try c.decodeIfPresent(Set<String>.self, forKey: .skips) ?? []
+        tuneQuietUntil = try c.decodeIfPresent(Date.self, forKey: .tuneQuietUntil)
     }
 
     /// The longest run it's ever had, by the same rules as `streak`.
@@ -316,7 +409,7 @@ nonisolated extension Habit {
         var day = start
         var skipped: Set<Int> = []
         while day <= today {
-            if schedule.isScheduled(day, calendar: calendar) {
+            if isExpected(on: day, calendar: calendar) {
                 if isDone(on: day, calendar: calendar) {
                     run += 1
                     best = max(best, run)
@@ -346,7 +439,7 @@ nonisolated extension Habit {
         var done = 0
         var day = from
         while day <= today {
-            if schedule.isScheduled(day, calendar: calendar) {
+            if isExpected(on: day, calendar: calendar) {
                 let isDoneDay = isDone(on: day, calendar: calendar)
                 if day != today || isDoneDay {
                     scheduled += 1
@@ -370,7 +463,7 @@ nonisolated extension Habit {
         let start = startDay(calendar: calendar) ?? date
         var misses: [Int: Int] = [:]
         for day in DayKey.days(endingOn: date, count: 84, calendar: calendar).dropLast() where day >= start {
-            if schedule.isScheduled(day, calendar: calendar), !isDone(on: day, calendar: calendar) {
+            if isExpected(on: day, calendar: calendar), !isDone(on: day, calendar: calendar) {
                 misses[calendar.component(.weekday, from: day), default: 0] += 1
             }
         }
@@ -399,6 +492,133 @@ nonisolated extension Habit {
             }
             completions = days
         }
+    }
+}
+
+// MARK: - Tune-ups
+
+/// Atomic Habits' Goldilocks rule: a habit sticks when it's just hard enough. When one has
+/// been slipping for two weeks Ebb suggests a smaller version; when it's been easy for a
+/// month, a small step up. Nothing changes until the user picks an option.
+nonisolated struct HabitTune {
+    enum Kind { case smaller, bigger }
+
+    struct Option: Identifiable {
+        let title: String
+        let apply: (inout Habit) -> Void
+        var id: String { title }
+    }
+
+    let kind: Kind
+    let options: [Option]
+
+    var title: String { kind == .smaller ? "Make it smaller?" : "Ready for a bit more?" }
+
+    func detail(for habit: Habit) -> String {
+        kind == .smaller
+            ? "It's slipped more often than not lately. A smaller version you'll actually do beats a big one you skip."
+            : "You've hardly missed a day in a month. A small step up keeps it from getting stale."
+    }
+
+    /// Quiet for three weeks after a tune-up or "Keep as is", so the change has time to show.
+    static let quietDays = 21
+}
+
+nonisolated extension Habit {
+    /// Share of the days it was due in the `days` before today that it got done, and how
+    /// many days that was. Weekly habits compare to their target.
+    func recentRate(days: Int, asOf date: Date, calendar: Calendar = .current) -> (rate: Double, due: Int)? {
+        let today = calendar.startOfDay(for: date)
+        guard let start = startDay(calendar: calendar),
+              let from = calendar.date(byAdding: .day, value: -days, to: today), start <= from else { return nil }
+        let window = (1...days).compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }
+        let done = window.filter { isDone(on: $0, calendar: calendar) }.count
+        if case .weekly(let times) = schedule {
+            let due = times * days / 7
+            return due > 0 ? (min(Double(done) / Double(due), 1), due) : nil
+        }
+        let due = window.filter { isExpected(on: $0, calendar: calendar) }.count
+        return due > 0 ? (Double(done) / Double(due), due) : nil
+    }
+
+    /// A suggested tune-up, if the last few weeks call for one.
+    func tune(asOf date: Date = .now, calendar: Calendar = .current) -> HabitTune? {
+        guard auto == nil, !isArchived else { return nil }
+        if let quiet = tuneQuietUntil, quiet > date { return nil }
+        if let recent = recentRate(days: 14, asOf: date, calendar: calendar), recent.due >= 5, recent.rate < 0.5 {
+            let options = smallerOptions()
+            return options.isEmpty ? nil : HabitTune(kind: .smaller, options: options)
+        }
+        if let recent = recentRate(days: 28, asOf: date, calendar: calendar), recent.due >= 12, recent.rate >= 0.9 {
+            let options = biggerOptions()
+            return options.isEmpty ? nil : HabitTune(kind: .bigger, options: options)
+        }
+        return nil
+    }
+
+    private func smallerOptions() -> [HabitTune.Option] {
+        var options: [HabitTune.Option] = []
+        if let tiny = tinyVersion?.trimmingCharacters(in: .whitespaces), !tiny.isEmpty, !isCounted {
+            options.append(.init(title: "Make “\(tiny)” the habit for now") { habit in
+                habit.tinyVersion = nil
+                habit.name = tiny
+            })
+        }
+        if isCounted, target > 1 {
+            let half = max(target / 2, 1)
+            options.append(.init(title: "Aim for \(half) a day instead of \(target)") { $0.target = half })
+        }
+        switch schedule {
+        case .daily:
+            options.append(.init(title: "4 days a week instead of every day") { $0.schedule = .weekly(4) })
+        case .days(let days) where days.count > 2:
+            options.append(.init(title: "\(days.count - 1) days a week instead of \(days.count)") { $0.schedule = .weekly(days.count - 1) })
+        case .weekly(let times) where times > 1:
+            options.append(.init(title: "\(times - 1)× a week instead of \(times)×") { $0.schedule = .weekly(times - 1) })
+        default:
+            break
+        }
+        return options
+    }
+
+    private func biggerOptions() -> [HabitTune.Option] {
+        var options: [HabitTune.Option] = []
+        if let (number, range) = firstNumber(in: name) {
+            let next = Self.stepUp(number)
+            let renamed = name.replacingCharacters(in: range, with: String(next))
+            options.append(.init(title: "Try “\(renamed)”") { $0.name = renamed })
+        }
+        if isCounted {
+            let next = target + max(target / 4, 1)
+            options.append(.init(title: "Aim for \(next) a day instead of \(target)") { $0.target = next })
+        }
+        if case .weekly(let times) = schedule, times < 7 {
+            options.append(.init(title: "\(times + 1)× a week instead of \(times)×") { $0.schedule = .weekly(times + 1) })
+        }
+        return options
+    }
+
+    /// A gentle step: 2 → 3, 5 → 7, 10 → 15, 20 → 30.
+    static func stepUp(_ n: Int) -> Int {
+        if n < 4 { return n + 1 }
+        if n < 10 { return n + 2 }
+        let raised = Double(n) * 1.5
+        return Int((raised / 5).rounded()) * 5
+    }
+
+    private func firstNumber(in text: String) -> (Int, Range<String.Index>)? {
+        guard let range = text.range(of: "[0-9]+", options: .regularExpression), let n = Int(text[range]) else { return nil }
+        return (n, range)
+    }
+
+    /// Applies an option and gives the change three weeks before suggesting again.
+    mutating func applyTune(_ option: HabitTune.Option, now: Date = .now, calendar: Calendar = .current) {
+        option.apply(&self)
+        quietTune(now: now, calendar: calendar)
+    }
+
+    mutating func quietTune(now: Date = .now, calendar: Calendar = .current) {
+        tuneQuietUntil = calendar.date(byAdding: .day, value: HabitTune.quietDays, to: now)
     }
 }
 

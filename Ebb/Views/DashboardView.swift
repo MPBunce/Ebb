@@ -186,7 +186,7 @@ struct DashboardView: View {
 
     // MARK: Habits & To-Do, ticked off right here
 
-    private var dueHabits: [Habit] { habits.filter { $0.schedule.isScheduled(.now) } }
+    private var dueHabits: [Habit] { habits.filter { $0.isExpected(on: .now) } }
     private var todayTodos: [TodoItem] { TodoStore.ordered(todos.filter { !$0.isSomeday }) }
 
     private func reloadRoutines() {

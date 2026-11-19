@@ -78,7 +78,7 @@ enum WeeklyRecap {
         if EbbPlus.isActive, !habits.isEmpty {
             var due = 0, done = 0
             for day in DayKey.days(endingOn: now, count: 7) where week.contains(day) {
-                for habit in habits where habit.schedule.isScheduled(day) {
+                for habit in habits where habit.isExpected(on: day) {
                     due += 1
                     if habit.isDone(on: day) { done += 1 }
                 }

@@ -230,3 +230,99 @@ struct DirectLaunchTests {
         #expect(test.contains("x-success=ebb://shortcut-ok"))
     }
 }
+
+struct NeverMissTwiceTests {
+    private let calendar = Calendar(identifier: .gregorian)
+    private func day(_ offset: Int, from today: Date) -> Date { calendar.date(byAdding: .day, value: offset, to: today)! }
+    private var today: Date { calendar.date(from: DateComponents(year: 2026, month: 11, day: 18))! } // a Wednesday
+
+    private func habit(doneOn offsets: [Int], created: Int = -40) -> Habit {
+        var h = Habit(name: "Read 10 pages")
+        h.createdAt = day(created, from: today)
+        h.completions = Set(offsets.map { DayKey.key(for: day($0, from: today), calendar: calendar) })
+        return h
+    }
+
+    @Test func flagsAHabitThatSlippedLastTime() {
+        #expect(habit(doneOn: [-2, -3]).needsComeback(asOf: today, calendar: calendar))
+        #expect(!habit(doneOn: [-1, -2]).needsComeback(asOf: today, calendar: calendar))
+        // Done today: nothing to flag.
+        #expect(!habit(doneOn: [0, -2]).needsComeback(asOf: today, calendar: calendar))
+    }
+
+    @Test func setDaysLookBackToTheLastScheduledDay() {
+        var h = habit(doneOn: [])
+        h.schedule = .weekdays
+        // Monday the 16th done; Tuesday the 17th missed → Wednesday is a comeback day.
+        h.completions = [DayKey.key(for: day(-2, from: today), calendar: calendar)]
+        #expect(h.needsComeback(asOf: today, calendar: calendar))
+    }
+
+    @Test func oneSlipDoesntEndTheForgivingStreak() {
+        // Done for 10 days, missed 1 (day -4), done since.
+        let h = habit(doneOn: [-1, -2, -3, -5, -6, -7, -8, -9, -10, -11, -12])
+        #expect(h.streak(asOf: today, calendar: calendar) == 3)
+        #expect(h.neverMissedTwice(asOf: today, calendar: calendar) >= 12)
+        // Two misses in a row (days -4 and -5) do end it.
+        let broken = habit(doneOn: [-1, -2, -3, -6, -7, -8])
+        #expect(broken.neverMissedTwice(asOf: today, calendar: calendar) == 3)
+    }
+
+    @Test func skipsKeepTheStreakAndAreLimited() {
+        var h = habit(doneOn: [-1, -3, -4])
+        #expect(h.streak(asOf: today, calendar: calendar) == 1)
+        h.skips = [DayKey.key(for: day(-2, from: today), calendar: calendar)]
+        #expect(h.streak(asOf: today, calendar: calendar) == 3)
+
+        h.skips = []
+        h.toggleSkip(on: today, calendar: calendar)
+        #expect(h.isSkipped(on: today, calendar: calendar))
+        #expect(!h.isExpected(on: today, calendar: calendar))
+        // A second skip this month is allowed, a third isn't.
+        h.toggleSkip(on: day(1, from: today), calendar: calendar)
+        #expect(h.skipsLeft(in: today, calendar: calendar) == 0)
+        h.toggleSkip(on: day(2, from: today), calendar: calendar)
+        #expect(!h.isSkipped(on: day(2, from: today), calendar: calendar))
+        // Ticking a skipped day un-skips it.
+        h.toggle(on: today, calendar: calendar)
+        #expect(!h.isSkipped(on: today, calendar: calendar))
+    }
+}
+
+struct HabitTuneTests {
+    private let calendar = Calendar(identifier: .gregorian)
+    private var today: Date { calendar.date(from: DateComponents(year: 2026, month: 11, day: 18))! }
+
+    private func habit(_ name: String, doneEveryNth n: Int, days: Int = 40) -> Habit {
+        var h = Habit(name: name)
+        h.createdAt = calendar.date(byAdding: .day, value: -days, to: today)
+        h.tinyVersion = "Read one page"
+        h.completions = Set((1...days).filter { $0 % n == 0 }.map {
+            DayKey.key(for: calendar.date(byAdding: .day, value: -$0, to: today)!, calendar: calendar)
+        })
+        return h
+    }
+
+    @Test func slippingHabitsGetSmallerOptions() throws {
+        let tune = try #require(habit("Read 10 pages", doneEveryNth: 3).tune(asOf: today, calendar: calendar))
+        #expect(tune.kind == .smaller)
+        var h = habit("Read 10 pages", doneEveryNth: 3)
+        h.applyTune(tune.options[0], now: today, calendar: calendar)
+        #expect(h.name == "Read one page")
+        // Quiet for three weeks after.
+        #expect(h.tune(asOf: today, calendar: calendar) == nil)
+    }
+
+    @Test func easyHabitsGetAStepUp() throws {
+        let tune = try #require(habit("Read 10 pages", doneEveryNth: 1).tune(asOf: today, calendar: calendar))
+        #expect(tune.kind == .bigger)
+        #expect(tune.options.first?.title == "Try “Read 15 pages”")
+        #expect(Habit.stepUp(20) == 30)
+        #expect(Habit.stepUp(3) == 4)
+    }
+
+    @Test func newOrSteadyHabitsGetNothing() {
+        #expect(habit("Read 10 pages", doneEveryNth: 3, days: 7).tune(asOf: today, calendar: calendar) == nil)
+        #expect(habit("Read 10 pages", doneEveryNth: 2).tune(asOf: today, calendar: calendar) == nil)
+    }
+}
